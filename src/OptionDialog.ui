@@ -118,7 +118,7 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <property name="spacing">
-             <number>3</number>
+             <number>6</number>
             </property>
             <item>
              <widget class="QLabel" name="label_5">
@@ -167,6 +167,19 @@
                <string>vertically</string>
               </property>
              </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_4">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
             </item>
            </layout>
           </item>
@@ -513,7 +526,7 @@
              <widget class="QComboBox" name="genCondensed">
               <property name="minimumSize">
                <size>
-                <width>0</width>
+                <width>100</width>
                 <height>22</height>
                </size>
               </property>
@@ -608,6 +621,9 @@
                 <pointsize>9</pointsize>
                </font>
               </property>
+              <property name="contextMenuPolicy">
+               <enum>Qt::NoContextMenu</enum>
+              </property>
               <property name="suffix">
                <string> ms</string>
               </property>
@@ -646,6 +662,9 @@
                 <height>22</height>
                </size>
               </property>
+              <property name="contextMenuPolicy">
+               <enum>Qt::NoContextMenu</enum>
+              </property>
               <property name="minimum">
                <number>1</number>
               </property>
@@ -681,6 +700,9 @@
                 <height>22</height>
                </size>
               </property>
+              <property name="contextMenuPolicy">
+               <enum>Qt::NoContextMenu</enum>
+              </property>
               <property name="minimum">
                <number>1</number>
               </property>
@@ -715,6 +737,9 @@
                 <width>0</width>
                 <height>22</height>
                </size>
+              </property>
+              <property name="contextMenuPolicy">
+               <enum>Qt::NoContextMenu</enum>
               </property>
               <property name="maximum">
                <number>999</number>
@@ -758,7 +783,20 @@
              </spacer>
             </item>
             <item>
-             <widget class="QComboBox" name="cbAppStyle"/>
+             <widget class="QComboBox" name="cbAppStyle">
+              <property name="minimumSize">
+               <size>
+                <width>85</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>22</height>
+               </size>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
@@ -876,38 +914,48 @@
            <property name="title">
             <string>Author information</string>
            </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_6">
+           <property name="flat">
+            <bool>false</bool>
+           </property>
+           <property name="checkable">
+            <bool>false</bool>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_2">
             <property name="spacing">
              <number>3</number>
             </property>
-            <property name="leftMargin">
-             <number>9</number>
-            </property>
             <property name="topMargin">
-             <number>3</number>
-            </property>
-            <property name="rightMargin">
-             <number>3</number>
+             <number>6</number>
             </property>
             <property name="bottomMargin">
-             <number>3</number>
+             <number>6</number>
             </property>
             <item>
-             <widget class="QLabel" name="authorInfo">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
+             <widget class="QTextEdit" name="authorInfo">
+              <property name="contextMenuPolicy">
+               <enum>Qt::NoContextMenu</enum>
               </property>
-              <property name="text">
-               <string/>
+              <property name="frameShape">
+               <enum>QFrame::StyledPanel</enum>
               </property>
-              <property name="scaledContents">
+              <property name="frameShadow">
+               <enum>QFrame::Sunken</enum>
+              </property>
+              <property name="lineWidth">
+               <number>1</number>
+              </property>
+              <property name="readOnly">
                <bool>true</bool>
               </property>
-              <property name="alignment">
-               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+              <property name="html">
+               <string notr="true">&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Verdana'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="acceptRichText">
+               <bool>true</bool>
               </property>
              </widget>
             </item>
@@ -987,6 +1035,9 @@
                 <pointsize>10</pointsize>
                </font>
               </property>
+              <property name="contextMenuPolicy">
+               <enum>Qt::NoContextMenu</enum>
+              </property>
               <property name="frameShape">
                <enum>QFrame::NoFrame</enum>
               </property>
@@ -1012,6 +1063,19 @@
               </item>
               <item>
                <widget class="QPushButton" name="catDirPlus">
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>26</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>10</pointsize>
+                  <weight>75</weight>
+                  <bold>true</bold>
+                 </font>
+                </property>
                 <property name="text">
                  <string>+</string>
                 </property>
@@ -1019,6 +1083,20 @@
               </item>
               <item>
                <widget class="QPushButton" name="catDirMinus">
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>26</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>10</pointsize>
+                  <weight>75</weight>
+                  <bold>true</bold>
+                  <kerning>true</kerning>
+                 </font>
+                </property>
                 <property name="text">
                  <string>-</string>
                 </property>
@@ -1139,6 +1217,9 @@
               <pointsize>10</pointsize>
              </font>
             </property>
+            <property name="contextMenuPolicy">
+             <enum>Qt::NoContextMenu</enum>
+            </property>
             <property name="frameShape">
              <enum>QFrame::NoFrame</enum>
             </property>
@@ -1157,6 +1238,12 @@
                 <height>13123213</height>
                </size>
               </property>
+              <property name="font">
+               <font>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
+              </property>
               <property name="text">
                <string>+</string>
               </property>
@@ -1169,6 +1256,12 @@
                 <width>16777215</width>
                 <height>13123123</height>
                </size>
+              </property>
+              <property name="font">
+               <font>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
               </property>
               <property name="text">
                <string>-</string>
@@ -1205,11 +1298,14 @@
             </item>
             <item>
              <widget class="QSpinBox" name="catDepth">
+              <property name="contextMenuPolicy">
+               <enum>Qt::NoContextMenu</enum>
+              </property>
               <property name="maximum">
                <number>100000</number>
               </property>
               <property name="value">
-               <number>100</number>
+               <number>10</number>
               </property>
              </widget>
             </item>
@@ -1278,7 +1374,23 @@
          <property name="alignment">
           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
          </property>
-         <layout class="QGridLayout" name="gridLayout_4"/>
+         <layout class="QGridLayout" name="gridLayout_4">
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>6</number>
+          </property>
+          <property name="rightMargin">
+           <number>6</number>
+          </property>
+          <property name="bottomMargin">
+           <number>6</number>
+          </property>
+          <property name="spacing">
+           <number>3</number>
+          </property>
+         </layout>
         </widget>
        </item>
       </layout>
@@ -1289,7 +1401,7 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_19" stretch="0,3">
+        <layout class="QHBoxLayout" name="horizontalLayout_19" stretch="2,3">
          <item>
           <widget class="QGroupBox" name="gbCheckUpdate">
            <property name="title">
@@ -1315,6 +1427,9 @@
                   <width>60</width>
                   <height>0</height>
                  </size>
+                </property>
+                <property name="contextMenuPolicy">
+                 <enum>Qt::NoContextMenu</enum>
                 </property>
                 <property name="suffix">
                  <string> s</string>
@@ -1347,6 +1462,9 @@
                   <width>60</width>
                   <height>0</height>
                  </size>
+                </property>
+                <property name="contextMenuPolicy">
+                 <enum>Qt::NoContextMenu</enum>
                 </property>
                 <property name="suffix">
                  <string> h</string>
@@ -1421,6 +1539,9 @@
                 <property name="enabled">
                  <bool>false</bool>
                 </property>
+                <property name="contextMenuPolicy">
+                 <enum>Qt::NoContextMenu</enum>
+                </property>
                </widget>
               </item>
               <item>
@@ -1440,6 +1561,9 @@
                   <width>80</width>
                   <height>16777215</height>
                  </size>
+                </property>
+                <property name="contextMenuPolicy">
+                 <enum>Qt::NoContextMenu</enum>
                 </property>
                </widget>
               </item>
@@ -1468,6 +1592,9 @@
                <widget class="QLineEdit" name="leProxyUsername">
                 <property name="enabled">
                  <bool>false</bool>
+                </property>
+                <property name="contextMenuPolicy">
+                 <enum>Qt::NoContextMenu</enum>
                 </property>
                </widget>
               </item>
@@ -1499,6 +1626,9 @@
                <widget class="QLineEdit" name="leProxyPassword">
                 <property name="enabled">
                  <bool>false</bool>
+                </property>
+                <property name="contextMenuPolicy">
+                 <enum>Qt::NoContextMenu</enum>
                 </property>
                </widget>
               </item>
@@ -1579,20 +1709,83 @@
          <property name="title">
           <string>System Options</string>
          </property>
-         <layout class="QGridLayout" name="gridLayout_7">
-          <property name="topMargin">
-           <number>3</number>
-          </property>
-          <property name="bottomMargin">
-           <number>3</number>
-          </property>
-          <property name="horizontalSpacing">
-           <number>6</number>
-          </property>
-          <property name="verticalSpacing">
-           <number>9</number>
-          </property>
-          <item row="4" column="0">
+         <layout class="QVBoxLayout" name="verticalLayout_4">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_4">
+            <item>
+             <widget class="QCheckBox" name="genRebuildCatalog">
+              <property name="text">
+               <string>Auto rescan catalog every</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="genRebuildMinutes">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>80</width>
+                <height>22</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>80</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="contextMenuPolicy">
+               <enum>Qt::NoContextMenu</enum>
+              </property>
+              <property name="accelerated">
+               <bool>true</bool>
+              </property>
+              <property name="suffix">
+               <string> min</string>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>99999999</number>
+              </property>
+              <property name="value">
+               <number>10</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="genShowHidden">
+            <property name="text">
+             <string>Show hidden files in browse mode</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="genShowNetwork">
+            <property name="text">
+             <string>Show network in browse mode</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="genPortable">
+            <property name="text">
+             <string>Portable mode (USB stick)</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <layout class="QHBoxLayout" name="horizontalLayout_11">
             <property name="spacing">
              <number>12</number>
@@ -1618,10 +1811,10 @@
              </spacer>
             </item>
             <item>
-             <widget class="QComboBox" name="genLog">
+             <widget class="QComboBox" name="cbLogLevel">
               <property name="minimumSize">
                <size>
-                <width>0</width>
+                <width>80</width>
                 <height>22</height>
                </size>
               </property>
@@ -1650,79 +1843,47 @@
             </item>
            </layout>
           </item>
-          <item row="3" column="0">
-           <widget class="QCheckBox" name="genPortable">
-            <property name="text">
-             <string>Portable mode (USB stick)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QCheckBox" name="genShowHidden">
-            <property name="text">
-             <string>Show hidden files in browse mode</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
             <item>
-             <widget class="QCheckBox" name="genRebuildCatalog">
+             <widget class="QLabel" name="label_24">
               <property name="text">
-               <string>Auto rescan catalog every</string>
-              </property>
-              <property name="checked">
-               <bool>true</bool>
+               <string>Language</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QSpinBox" name="genRebuildMinutes">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
+             <spacer name="horizontalSpacer_10">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
               </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QComboBox" name="cbLanguage">
               <property name="minimumSize">
                <size>
-                <width>0</width>
+                <width>80</width>
                 <height>22</height>
                </size>
               </property>
               <property name="maximumSize">
                <size>
-                <width>95</width>
-                <height>16777215</height>
+                <width>16777215</width>
+                <height>22</height>
                </size>
-              </property>
-              <property name="accelerated">
-               <bool>true</bool>
-              </property>
-              <property name="suffix">
-               <string> min</string>
-              </property>
-              <property name="minimum">
-               <number>1</number>
-              </property>
-              <property name="maximum">
-               <number>99999999</number>
-              </property>
-              <property name="value">
-               <number>10</number>
               </property>
              </widget>
             </item>
            </layout>
           </item>
-          <item row="2" column="0">
-           <widget class="QCheckBox" name="genShowNetwork">
-            <property name="text">
-             <string>Show network in browse mode</string>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="0">
+          <item>
            <spacer name="verticalSpacer">
             <property name="orientation">
              <enum>Qt::Vertical</enum>
@@ -1789,9 +1950,9 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>220</y>
+         <y>200</y>
          <width>261</width>
-         <height>81</height>
+         <height>131</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -1843,7 +2004,7 @@ p, li { white-space: pre-wrap; }
         </font>
        </property>
        <property name="text">
-        <string>Ver</string>
+        <string notr="true">Ver</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -1872,12 +2033,6 @@ p, li { white-space: pre-wrap; }
          <width>400</width>
          <height>16777215</height>
         </size>
-       </property>
-       <property name="font">
-        <font>
-         <family>ADMUI3Lg</family>
-         <pointsize>10</pointsize>
-        </font>
        </property>
        <property name="text">
         <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
@@ -1910,7 +2065,7 @@ p, li { white-space: pre-wrap; }
         </size>
        </property>
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Home Page: &lt;a href=&quot;https://launchyqt.com&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;https://launchyqt.com&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;p&gt;Feedback: &lt;a href=&quot;https://github.com/samsonwang/LaunchyQt/issues&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Github issue&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;p&gt;Development: &lt;a href=&quot;https://github.com/samsonwang/LaunchyQt/blob/master/docs/CHANGELOG.org&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Github changelog&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Home Page: &lt;a href=&quot;https://launchyqt.com&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;https://launchyqt.com&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;p&gt;Feedback: &lt;a href=&quot;https://github.com/samsonwang/LaunchyQt/issues&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Github issue&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;p&gt;Development: &lt;a href=&quot;https://github.com/samsonwang/LaunchyQt/projects/1&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Github project&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
        <property name="textFormat">
         <enum>Qt::RichText</enum>
@@ -1942,7 +2097,7 @@ p, li { white-space: pre-wrap; }
         </font>
        </property>
        <property name="text">
-        <string>LaunchyQt</string>
+        <string notr="true">LaunchyQt</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -1961,7 +2116,7 @@ p, li { white-space: pre-wrap; }
         </rect>
        </property>
        <property name="text">
-        <string>(xx-bit)</string>
+        <string notr="true">(xx-bit)</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_2">
@@ -1986,8 +2141,8 @@ p, li { white-space: pre-wrap; }
       <widget class="QLabel" name="label_22">
        <property name="geometry">
         <rect>
-         <x>400</x>
-         <y>300</y>
+         <x>390</x>
+         <y>290</y>
          <width>271</width>
          <height>31</height>
         </rect>
@@ -2003,14 +2158,35 @@ p, li { white-space: pre-wrap; }
     </widget>
    </item>
    <item>
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
+    <layout class="QHBoxLayout" name="horizontalLayout_18">
+     <item>
+      <spacer name="horizontalSpacer_11">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pbOk">
+       <property name="text">
+        <string>Ok</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pbCancel">
+       <property name="text">
+        <string>Cancel</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>
@@ -2051,45 +2227,11 @@ p, li { white-space: pre-wrap; }
   <tabstop>catDepth</tabstop>
   <tabstop>catRescan</tabstop>
   <tabstop>plugList</tabstop>
-  <tabstop>buttonBox</tabstop>
  </tabstops>
  <resources>
   <include location="launchy.qrc"/>
  </resources>
- <connections>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>accepted()</signal>
-   <receiver>OptionDialog</receiver>
-   <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>531</x>
-     <y>564</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>157</x>
-     <y>274</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>rejected()</signal>
-   <receiver>OptionDialog</receiver>
-   <slot>reject()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>531</x>
-     <y>564</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>286</x>
-     <y>274</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
  <designerdata>
   <property name="gridDeltaX">
    <number>10</number>

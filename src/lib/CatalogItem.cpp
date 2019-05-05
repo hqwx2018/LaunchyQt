@@ -17,8 +17,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-
 #include "CatalogItem.h"
+#include <QDataStream>
+#include <QDebug>
+#include "UnicodeTable.h"
+
 namespace launchy {
 CatItem::CatItem()
     : usage(0),
@@ -38,11 +41,13 @@ CatItem::CatItem(const QString& full, bool isDir)
     }
     else {
         shortName = fullPath.mid(last+1);
-        if (!isDir)
+        if (!isDir) {
             shortName = shortName.mid(0, shortName.lastIndexOf("."));
+        }
     }
 
-    lowName = shortName.toLower();
+    searchName[LOWER] = shortName.toLower();
+    searchName[TRANS] = convertSearchName(searchName[0]);
 }
 
 CatItem::CatItem(const QString& full, const QString& shortN)
@@ -51,26 +56,32 @@ CatItem::CatItem(const QString& full, const QString& shortN)
       usage(0),
       data(NULL),
       pluginId(0) {
-    lowName = shortName.toLower();
+
+    searchName[LOWER] = shortName.toLower();
+    searchName[TRANS] = convertSearchName(searchName[0]);
 }
 
-CatItem::CatItem(const QString& full, const QString& shortN, uint i)
+CatItem::CatItem(const QString& full, const QString& shortN, uint id)
     : fullPath(full),
       shortName(shortN),
       usage(0),
       data(NULL),
-      pluginId(i) {
-    lowName = shortName.toLower();
+      pluginId(id) {
+
+    searchName[LOWER] = shortName.toLower();
+    searchName[TRANS] = convertSearchName(searchName[0]);
 }
 
-CatItem::CatItem(const QString& full, const QString& shortN, uint i, const QString& iconPath)
+CatItem::CatItem(const QString& full, const QString& shortN, uint id, const QString& iconPath)
     : fullPath(full),
       shortName(shortN),
       iconPath(iconPath),
       usage(0),
       data(NULL),
-      pluginId(i) {
-    lowName = shortName.toLower();
+      pluginId(id) {
+
+    searchName[LOWER] = shortName.toLower();
+    searchName[TRANS] = convertSearchName(searchName[0]);
 }
 
 bool CatItem::operator!=(const CatItem& other) const {
@@ -84,7 +95,8 @@ bool CatItem::operator==(const CatItem& other) const {
 QDataStream& operator<<(QDataStream& out, const CatItem &item) {
     out << item.fullPath;
     out << item.shortName;
-    out << item.lowName;
+    out << item.searchName[CatItem::LOWER];
+    out << item.searchName[CatItem::TRANS];
     out << item.iconPath;
     out << item.usage;
     out << item.pluginId;
@@ -94,10 +106,29 @@ QDataStream& operator<<(QDataStream& out, const CatItem &item) {
 QDataStream& operator>>(QDataStream& in, CatItem &item) {
     in >> item.fullPath;
     in >> item.shortName;
-    in >> item.lowName;
+    in >> item.searchName[CatItem::LOWER];
+    in >> item.searchName[CatItem::TRANS];
     in >> item.iconPath;
     in >> item.usage;
     in >> item.pluginId;
     return in;
 }
+
+QString CatItem::convertSearchName(const QString& shortName) {
+    QString result = shortName.toLower();
+
+    for (int i = 0; i<result.size(); ++i) {
+        ushort code = result[i].unicode();
+
+        // zhCN simplified Chinese (pin yin)
+        if (code >= zhCN_min && code <= zhCN_max) {
+            result[i] = zhCN_table[code - zhCN_min];
+        }
+
+    }
+    qDebug() << "CatItem::convertSearchName, shortName:" << shortName
+        << ", result:" << result;
+    return result;
+}
+
 }

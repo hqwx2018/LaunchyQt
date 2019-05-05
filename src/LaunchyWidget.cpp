@@ -25,8 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <QSystemTrayIcon>
 #include <QPushButton>
 #include "QHotkey/QHotkey.h"
-#include "IconDelegate.h"
 #include "GlobalVar.h"
+#include "IconDelegate.h"
 #include "OptionDialog.h"
 #include "OptionItem.h"
 #include "FileSearch.h"
@@ -51,6 +51,8 @@ namespace launchy {
 // for qt flags
 // check this page https://stackoverflow.com/questions/10755058/qflags-enum-type-conversion-fails-all-of-a-sudden
 using ::operator|;
+
+LaunchyWidget* LaunchyWidget::s_instance;
 
 LaunchyWidget::LaunchyWidget(CommandFlags command)
 #if defined(Q_OS_WIN) || defined(Q_OS_LINUX)
@@ -77,7 +79,6 @@ LaunchyWidget::LaunchyWidget(CommandFlags command)
       m_optionDialog(nullptr),
       m_optionsOpen(false) {
 
-    g_mainWidget.reset(this);
     g_searchText.clear();
 
     setObjectName("launchy");
@@ -163,9 +164,8 @@ LaunchyWidget::LaunchyWidget(CommandFlags command)
     }
 
     // Load the catalog
-    g_builder.reset(new CatalogBuilder);
-    connect(g_builder.data(), SIGNAL(catalogIncrement(int)), this, SLOT(catalogProgressUpdated(int)));
-    connect(g_builder.data(), SIGNAL(catalogFinished()), this, SLOT(catalogBuilt()));
+    connect(g_builder, SIGNAL(catalogIncrement(int)), this, SLOT(catalogProgressUpdated(int)));
+    connect(g_builder, SIGNAL(catalogFinished()), this, SLOT(catalogBuilt()));
 
     if (!g_catalog->load(SettingsManager::instance().catalogFilename())) {
         command |= Rescan;
@@ -174,14 +174,17 @@ LaunchyWidget::LaunchyWidget(CommandFlags command)
     // Load the history
     m_history.load(SettingsManager::instance().historyFilename());
 
-    // Load the skin
-    //setStyleSheet(":/resources/basicskin.qss");
+    // Load fail-safe basic skin
+    QFile basicSkinFile(":/resources/basicskin.qss");
+    basicSkinFile.open(QFile::ReadOnly);
+    qApp->setStyleSheet(basicSkinFile.readAll());
+    // Load skin
     applySkin(g_settings->value(OPSTION_SKIN, OPSTION_SKIN_DEFAULT).toString());
 
     // Move to saved position
     loadPosition(g_settings->value(OPSTION_POS, OPSTION_POS_DEFAULT).toPoint());
 
-    connect(g_app.data(), &SingleApplication::instanceStarted,
+    connect(g_app, &SingleApplication::instanceStarted,
             this, &LaunchyWidget::onSecondInstance);
 
     // Set the timers
@@ -202,11 +205,24 @@ LaunchyWidget::LaunchyWidget(CommandFlags command)
 }
 
 LaunchyWidget::~LaunchyWidget() {
-    // maybe option dialog is destroyed before launchy destruction
-//     if (m_optionDialog) {
-//         delete m_optionDialog;
-//         m_optionDialog = nullptr;
-//     }
+    s_instance = nullptr;
+    m_trayIcon->hide();
+    if (m_optionDialog) {
+        m_optionDialog->close();
+        delete m_optionDialog;
+        m_optionDialog = nullptr;
+    }
+}
+
+LaunchyWidget* LaunchyWidget::instance() {
+    return s_instance;
+}
+
+void LaunchyWidget::cleanup() {
+    if (s_instance) {
+        delete s_instance;
+        s_instance = nullptr;
+    }
 }
 
 void LaunchyWidget::executeStartupCommand(int command) {
@@ -241,11 +257,7 @@ void LaunchyWidget::executeStartupCommand(int command) {
 void LaunchyWidget::showEvent(QShowEvent* event) {
     if (m_skinChanged) {
         // output icon may changed with skin
-        int maxIconSize = m_outputIcon->width();
-        maxIconSize = qMax(maxIconSize, m_outputIcon->height());
-        qDebug() << "LaunchyWidget::showEvent, output icon size:" << maxIconSize;
-        g_app->setPreferredIconSize(maxIconSize);
-        m_alternativeList->setIconSize(maxIconSize);
+        updateOutputSize();
         m_skinChanged = false;
     }
     QWidget::showEvent(event);
@@ -272,11 +284,19 @@ void LaunchyWidget::setAlternativeListMode(int mode) {
 }
 
 bool LaunchyWidget::setHotkey(const QKeySequence& hotkey) {
+    QKeySequence seqOld = m_pHotKey->keySeq();
     m_pHotKey->setKeySeq(hotkey);
+
+    if (!m_pHotKey->registered()) {
+        m_pHotKey->setKeySeq(seqOld);
+        return false;
+    }
+
     m_trayIcon->setToolTip(tr("Launchy %1\npress %2 to activate")
                            .arg(LAUNCHY_VERSION_STRING)
                            .arg(hotkey.toString()));
-    return m_pHotKey->registered();
+
+    return true;
 }
 
 void LaunchyWidget::showTrayIcon() {
@@ -506,12 +526,12 @@ void LaunchyWidget::onAlternativeListKeyPressed(QKeyEvent* event) {
     else if (event->key() == Qt::Key_Return
              || event->key() == Qt::Key_Enter
              || event->key() == Qt::Key_Tab) {
-        if (m_searchResult.count() > 0) {
+        if (!m_searchResult.isEmpty()) {
             int row = m_alternativeList->currentRow();
             if (row > -1) {
                 QString location = "History/" + m_inputBox->text();
                 QStringList hist;
-                hist << m_searchResult[row].lowName << m_searchResult[row].fullPath;
+                hist << m_searchResult[row].shortName << m_searchResult[row].fullPath;
                 g_settings->setValue(location, hist);
 
                 if (row > 0)
@@ -744,7 +764,7 @@ void LaunchyWidget::doEnter() {
         hideLaunchy();
     }
     else {
-        qDebug("Nothing to launch");
+        qDebug("LaunchyWidget::doEnter, Nothing to launch");
     }
 }
 
@@ -770,9 +790,6 @@ void LaunchyWidget::processKey() {
 }
 
 void LaunchyWidget::searchOnInput() {
-    if (g_catalog.isNull())
-        return;
-
     QString searchText = m_inputData.count() > 0 ? m_inputData.last().getText() : "";
     QString searchTextLower = searchText.toLower();
     g_searchText = searchTextLower;
@@ -803,7 +820,7 @@ void LaunchyWidget::searchOnInput() {
 
         // Sort the results by match and usage, then promote any that match previously
         // executed commands
-        qSort(m_searchResult.begin(), m_searchResult.end(), CatLessNoPtr);
+        qSort(m_searchResult.begin(), m_searchResult.end(), CatLessRef);
         g_catalog->promoteRecentlyUsedItems(searchTextLower, m_searchResult);
 
         // Finally, if the search text looks like a file or directory name,
@@ -862,10 +879,36 @@ void LaunchyWidget::updateOutputBox(bool resetAlternativesSelection) {
 
 void LaunchyWidget::startDropTimer() {
     int delay = g_settings->value(OPSTION_AUTOSUGGESTDELAY, OPSTION_AUTOSUGGESTDELAY_DEFAULT).toInt();
-    if (delay > 0)
+    if (delay > 0) {
         m_dropTimer->start(delay);
-    else
+    }
+    else {
         dropTimeout();
+    }
+}
+
+void LaunchyWidget::retranslateUi() {
+    m_actShow->setText(tr("Show Launchy"));
+    m_actReloadSkin->setText(tr("Reload skin"));
+    m_actRebuild->setText(tr("Rebuild catalog"));
+    m_actOptions->setText(tr("Options"));
+    m_actCheckUpdate->setText(tr("Check for updates"));
+    m_actRestart->setText(tr("Restart"));
+    m_actExit->setText(tr("Exit"));
+
+    m_optionButton->setToolTip(tr("Options"));
+    m_closeButton->setToolTip(tr("Close"));
+
+    m_trayIcon->setToolTip(tr("Launchy %1\npress %2 to activate")
+                           .arg(LAUNCHY_VERSION_STRING)
+                           .arg(m_pHotKey->keySeq().toString()));
+}
+
+void LaunchyWidget::updateOutputSize() {
+    int maxIconSize = qMax(m_outputIcon->width(), m_outputIcon->height());
+    qDebug() << "LaunchyWidget::showEvent, output icon size:" << maxIconSize;
+    g_app->setPreferredIconSize(maxIconSize);
+    m_alternativeList->setIconSize(maxIconSize);
 }
 
 void LaunchyWidget::dropTimeout() {
@@ -931,7 +974,6 @@ void LaunchyWidget::updateVersion(int oldVersion) {
     }
 
     if (oldVersion < LAUNCHY_VERSION) {
-//        g_settings->setValue("donateTime", QDateTime::currentDateTime().addDays(21));
         g_settings->setValue(OPSTION_VERSION, LAUNCHY_VERSION);
     }
 }
@@ -974,7 +1016,7 @@ void LaunchyWidget::saveSettings() {
 }
 
 void LaunchyWidget::startRebuildTimer() {
-    int time = g_settings->value(OPSTION_REBUILDTIMER, OPSTION_REBUILDTIMER_DEFAULT).toInt();
+    int time = g_settings->value(OPTION_REBUILDTIMER, OPTION_REBUILDTIMER_DEFAULT).toInt();
     if (time > 0) {
         m_rebuildTimer->start(time * 60000);
     }
@@ -1043,6 +1085,7 @@ void LaunchyWidget::reloadSkin() {
 }
 
 void LaunchyWidget::exit() {
+    m_trayIcon->hide();
     m_fader->stop();
     saveSettings();
     qApp->quit();
@@ -1062,8 +1105,10 @@ void LaunchyWidget::onInputBoxInputMethod(QInputMethodEvent* event) {
     qDebug() << "LaunchyWidget::onInputBoxInputMethod";
     QString commitStr = event->commitString();
     if (!commitStr.isEmpty()) {
-        qDebug() << "LaunchyWidget::onInputBoxInputMethod, commitString:" << commitStr;
-        m_inputData.parse(commitStr);
+        qDebug() << "LaunchyWidget::onInputBoxInputMethod,"
+            << ", commit string:" << commitStr
+            << ", inputbox text:" << m_inputBox->text();
+        m_inputData.parse(m_inputBox->text());
         searchOnInput();
         updateOutputBox();
     }
@@ -1108,7 +1153,7 @@ void LaunchyWidget::applySkin(const QString& name) {
     QString strStyleSheet(fileStyle.readAll());
     // transform stylesheet for external resources
     strStyleSheet.replace("url(", "url("+skinPath);
-    this->setStyleSheet(strStyleSheet);
+    qApp->setStyleSheet(strStyleSheet);
 
     bool validFrame = false;
     QPixmap frame;
@@ -1138,7 +1183,7 @@ void LaunchyWidget::applySkin(const QString& name) {
             QPixmap mask;
             if (mask.load(skinPath + "mask_nc.png")) {
                 // For some reason, w/ compiz setmask won't work
-                // for rectangular areas.  This is due to compiz and
+                // for rectangular areas. This is due to compiz and
                 // XShapeCombineMask
                 setMask(mask);
             }
@@ -1153,6 +1198,12 @@ void LaunchyWidget::applySkin(const QString& name) {
         m_frameGraphic.swap(frame);
         resize(m_frameGraphic.size());
     }
+    else {
+        m_frameGraphic.fill(Qt::transparent);
+    }
+
+    // output size may change when skin change
+    updateOutputSize();
 
     // separator may change when skin change
     InputDataList::setSeparator(m_inputBox->separatorText());
@@ -1199,6 +1250,16 @@ void LaunchyWidget::contextMenuEvent(QContextMenuEvent* event) {
     m_menuOpen = false;
 }
 
+void LaunchyWidget::changeEvent(QEvent* event) {
+    if (event->type() == QEvent::LanguageChange) {
+        // retranslate designer form (single inheritance approach)
+        retranslateUi();
+    }
+
+    // remember to call base class implementation
+    QWidget::changeEvent(event);
+}
+
 void LaunchyWidget::trayIconActivated(QSystemTrayIcon::ActivationReason reason) {
     switch (reason) {
     case QSystemTrayIcon::Trigger:
@@ -1217,7 +1278,7 @@ void LaunchyWidget::buildCatalog() {
     saveSettings();
 
     // Use the catalog builder to refresh the catalog in a worker thread
-    QMetaObject::invokeMethod(g_builder.data(), &CatalogBuilder::buildCatalog);
+    QMetaObject::invokeMethod(g_builder, &CatalogBuilder::buildCatalog);
 
     startRebuildTimer();
 }
@@ -1229,10 +1290,11 @@ void LaunchyWidget::showOptionDialog() {
 
         if (!m_optionDialog) {
             m_optionDialog = new OptionDialog(nullptr);
-            m_optionDialog->setObjectName("options");
         }
 
         m_optionDialog->exec();
+        delete m_optionDialog;
+        m_optionDialog = nullptr;
 
         activateWindow();
         m_inputBox->setFocus();
@@ -1260,7 +1322,7 @@ void LaunchyWidget::setFadeLevel(double level) {
 
 
 void LaunchyWidget::showLaunchy(bool noFade) {
-    // shouldDonate();
+
     hideAlternativeList();
 
     loadPosition(pos());
@@ -1339,13 +1401,14 @@ void LaunchyWidget::createActions() {
         UpdateChecker::instance().manualCheck();
     });
 
-    m_actRestart = new QAction(tr("Restart"), this);
-    connect(m_actRestart, &QAction::triggered, []() {
-        qInfo() << "Performing application reboot...";
+    m_actRestart = new QAction(tr("Relaunch"), this);
+    connect(m_actRestart, &QAction::triggered, [=]() {
+        qInfo() << "Performing application relaunch...";
         // restart:
         //qApp->closeAllWindows();
-        qApp->quit();
-        QProcess::startDetached(qApp->arguments()[0], qApp->arguments());
+        m_trayIcon->hide();
+        qApp->exit(Restart);
+        qInfo() << "Finish application relaunch...";
     });
 
     m_actExit = new QAction(tr("Exit"), this);

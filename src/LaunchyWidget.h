@@ -54,8 +54,8 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(CommandFlags)
 class LaunchyWidget : public QWidget {
     Q_OBJECT
 public:
-    LaunchyWidget(CommandFlags command);
-    virtual ~LaunchyWidget();
+    static LaunchyWidget* instance();
+    static void cleanup();
 
 public:
     void executeStartupCommand(int command);
@@ -85,6 +85,7 @@ protected:
     virtual void mouseMoveEvent(QMouseEvent* event);
     virtual void mouseReleaseEvent(QMouseEvent* event);
     virtual void contextMenuEvent(QContextMenuEvent* event);
+    virtual void changeEvent(QEvent* event);
 
 protected:
     void saveSettings();
@@ -97,6 +98,7 @@ protected:
     void hideAlternativeList();
     void updateAlternativeList(bool resetSelection = true);
     void updateOutputBox(bool resetAlternativesSelection = true);
+    void updateOutputSize();
     void searchOnInput();
     void loadPosition(QPoint pt);
     void savePosition();
@@ -106,6 +108,7 @@ protected:
     void processKey();
     void launchItem(CatItem& item);
     void startDropTimer();
+    void retranslateUi();
 
 protected slots:
     void showOptionDialog();
@@ -126,6 +129,12 @@ protected slots:
     void onInputBoxInputMethod(QInputMethodEvent* event);
     void onInputBoxTextEdited(const QString& str);
     void onSecondInstance();
+
+protected:
+    LaunchyWidget(CommandFlags command);
+    Q_DISABLE_COPY(LaunchyWidget)
+    friend void createLaunchyWidget(CommandFlags command);
+    virtual ~LaunchyWidget();
 
 protected:
     QString m_currentSkin;
@@ -169,7 +178,13 @@ protected:
 
     OptionDialog* m_optionDialog;
     bool m_optionsOpen;
+
+private:
+    static LaunchyWidget* s_instance;
 };
 
-LaunchyWidget* createLaunchyWidget(CommandFlags command);
+void createLaunchyWidget(CommandFlags command);
+
+#define g_mainWidget launchy::LaunchyWidget::instance()
+
 }

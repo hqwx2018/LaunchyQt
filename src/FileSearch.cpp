@@ -78,7 +78,7 @@ void FileSearch::search(const QString& searchText,
     // This is a windows network search
     if (searchPath.startsWith("//")) {
         // Exit if the user doesn't want to browse networks
-        if (!g_settings->value(OPSTION_SHOWNETWORK, OPSTION_SHOWNETWORK_DEFAULT).toBool())
+        if (!g_settings->value(OPTION_SHOWNETWORK, OPTION_SHOWNETWORK_DEFAULT).toBool())
             return;
 
         // Check for a search against just the network name
@@ -105,7 +105,7 @@ void FileSearch::search(const QString& searchText,
         filePart = filePart.toLower();
 #endif
 
-        if (g_settings->value(OPSTION_SHOWHIDDENFILES, OPSTION_SHOWHIDDENFILES_DEFAULT).toBool()) {
+        if (g_settings->value(OPTION_SHOWHIDDENFILES, OPTION_SHOWHIDDENFILES_DEFAULT).toBool()) {
             filters |= QDir::Hidden;
         }
 
@@ -137,7 +137,7 @@ void FileSearch::search(const QString& searchText,
     }
     else if (sort) {
         // If we're not matching exactly and there's a filename then do a priority sort
-        qSort(searchResults.begin(), searchResults.end(), CatLessNoPtr);
+        qSort(searchResults.begin(), searchResults.end(), CatLessRef);
     }
 
     inputData.last().setLabel(LABEL_FILE);

@@ -23,11 +23,21 @@
 #include "OptionItem.h"
 
 namespace launchy {
+
+Catalog::Catalog()
+    : m_timestamp(0) {
+
+}
+
+Catalog::~Catalog() {
+
+}
+
 // Load the catalog from the specified filename
 bool Catalog::load(const QString& filename) {
     QFile inFile(filename);
     if (!inFile.open(QIODevice::ReadOnly)) {
-        qWarning("Could not open catalog file for reading");
+        qWarning("Catalog::load, Could not open catalog file for reading");
         return false;
     }
 
@@ -67,7 +77,7 @@ bool Catalog::save(const QString& filename) {
     // Compress and write the catalog to the specified file
     QFile file(filename);
     if (!file.open(QIODevice::WriteOnly)) {
-        qWarning("Could not open catalog file for writing");
+        qWarning("Catalog::save, Could not open catalog file for writing");
         return false;
     }
     file.write(qCompress(ba));
@@ -75,12 +85,25 @@ bool Catalog::save(const QString& filename) {
 }
 
 
+void Catalog::incrementTimestamp() {
+    ++m_timestamp;
+}
+
 // Return true if the specified catalog item matches the specified string
 bool Catalog::matches(CatItem* item, const QString& match) {
     int matchLength = match.count();
     int curChar = 0;
 
-    foreach(QChar c, item->lowName) {
+    foreach(QChar c, item->searchName[CatItem::LOWER]) {
+        if (c == match[curChar]) {
+            ++curChar;
+            if (curChar >= matchLength) {
+                return true;
+            }
+        }
+    }
+
+    foreach(QChar c, item->searchName[CatItem::TRANS]) {
         if (c == match[curChar]) {
             ++curChar;
             if (curChar >= matchLength) {
@@ -102,7 +125,7 @@ void Catalog::searchCatalogs(const QString& text, QList<CatItem>& out) {
     QList<CatItem*> catMatches = search(text);
     qDebug() << "Catalog::searchCatalogs, search matched count:" << catMatches.count();
     // Now prioritize the catalog items
-    qSort(catMatches.begin(), catMatches.end(), CatLess);
+    qSort(catMatches.begin(), catMatches.end(), CatLessPtr);
 
     // Check for history matches
     QString location = "History/" + text;
@@ -110,7 +133,7 @@ void Catalog::searchCatalogs(const QString& text, QList<CatItem>& out) {
     hist = g_settings->value(location).toStringList();
     if (hist.count() == 2) {
         for (int i = 0; i < catMatches.count(); i++) {
-            if (catMatches[i]->lowName == hist[0]
+            if (catMatches[i]->searchName == hist[0]
                 && catMatches[i]->fullPath == hist[1]) {
                 CatItem* tmp = catMatches[i];
                 catMatches.removeAt(i);
@@ -134,7 +157,7 @@ void Catalog::promoteRecentlyUsedItems(const QString& text, QList<CatItem> & lis
     hist = g_settings->value(location, hist).toStringList();
     if (hist.count() == 2) {
         for (int i = 0; i < list.count(); i++) {
-            if (list[i].lowName == hist[0]
+            if (list[i].searchName == hist[0]
                 && list[i].fullPath == hist[1]) {
                 CatItem tmp = list[i];
                 list.removeAt(i);
@@ -223,22 +246,19 @@ void SlowCatalog::addItem(const CatItem& item) {
 
     if (!replaced) {
         // If no match found, append the item to the catalog
-        qDebug() << "Adding" << item.fullPath;
+        qDebug() << "SlowCatalog::addItem, Adding" << item.fullPath;
         m_catalogItems.push_back(CatalogItem(item, m_timestamp));
     }
 }
 
 
-void SlowCatalog::purgeOldItems()
-{
+void SlowCatalog::purgeOldItems() {
     // Prevent other threads accessing the catalog
     QMutexLocker locker(&m_mutex);
 
-    for (int i = m_catalogItems.size() - 1; i >= 0; --i)
-    {
-        if (m_catalogItems.at(i).m_timestamp < m_timestamp)
-        {
-            qDebug() << "Removing" << m_catalogItems.at(i).fullPath;
+    for (int i = m_catalogItems.size() - 1; i >= 0; --i) {
+        if (m_catalogItems.at(i).m_timestamp < m_timestamp) {
+            qDebug() << "SlowCatalog::purgeOldItems, Removing" << m_catalogItems.at(i).fullPath;
             m_catalogItems.remove(i);
         }
     }
@@ -303,8 +323,8 @@ QList<CatItem*> SlowCatalog::search(const QString& searchText) {
     return result;
 }
 
-bool CatLessNoPtr(CatItem& a, CatItem& b) {
-    bool less = CatLess(&a, &b);
+bool CatLessRef(CatItem& a, CatItem& b) {
+    bool less = CatLessPtr(&a, &b);
     /*	if (less)
     qDebug() << a.lowName << "(" << a.usage << ") < " << b.lowName << " (" << b.usage << ")";
     else
@@ -313,15 +333,18 @@ bool CatLessNoPtr(CatItem& a, CatItem& b) {
     return less;
 }
 
-bool CatLess(CatItem* a, CatItem* b) {
+bool CatLessPtr(CatItem* a, CatItem* b) {
     // Items with negative usage are lowest priority
     if (a->usage < 0 && b->usage >= 0)
         return false;
     if (b->usage < 0 && a->usage >= 0)
         return true;
 
-    bool localEqual = a->lowName == g_searchText;
-    bool otherEqual = b->lowName == g_searchText;
+    bool localEqual = (a->searchName[CatItem::LOWER] == g_searchText
+        || a->searchName[CatItem::TRANS] == g_searchText);
+
+    bool otherEqual = (b->searchName[CatItem::LOWER] == g_searchText
+        || b->searchName[CatItem::TRANS] == g_searchText);
 
     // Exact match between search text and item name has higest priority
     if (localEqual && !otherEqual)
@@ -329,8 +352,10 @@ bool CatLess(CatItem* a, CatItem* b) {
     if (!localEqual && otherEqual)
         return false;
 
-    int localFind = a->lowName.indexOf(g_searchText);
-    int otherFind = b->lowName.indexOf(g_searchText);
+    int localFind = std::min(a->searchName[CatItem::LOWER].indexOf(g_searchText),
+                             a->searchName[CatItem::TRANS].indexOf(g_searchText));
+    int otherFind = std::min(b->searchName[CatItem::LOWER].indexOf(g_searchText),
+                             b->searchName[CatItem::TRANS].indexOf(g_searchText));
 
     if (g_searchText.count() == 1) {
         // Match at the start
@@ -374,8 +399,8 @@ bool CatLess(CatItem* a, CatItem* b) {
             return false;
     }
 
-    int localLen = a->lowName.count();
-    int otherLen = b->lowName.count();
+    int localLen = a->shortName.count();
+    int otherLen = b->shortName.count();
 
     // Favour shorter item names
     if (localLen < otherLen)
@@ -386,4 +411,16 @@ bool CatLess(CatItem* a, CatItem* b) {
     // Absolute tiebreaker to prevent loops
     return a->fullPath < b->fullPath;
 }
+
+CatalogItem::CatalogItem()
+    : m_timestamp(0) {
+
+}
+
+CatalogItem::CatalogItem(const CatItem& item, int time)
+    : CatItem(item),
+      m_timestamp(time) {
+
+}
+
 }

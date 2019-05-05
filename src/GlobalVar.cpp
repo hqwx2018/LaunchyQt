@@ -18,11 +18,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "GlobalVar.h"
-#include <QSettings>
 #include "AppBase.h"
 #include "LaunchyWidget.h"
-#include "Catalog.h"
 #include "CatalogBuilder.h"
+#include "LaunchyLib.h"
 
 // Check windows
 #if _WIN32 || _WIN64
@@ -45,8 +44,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 namespace launchy {
 
-const int LAUNCHY_VERSION = 305;
-const char* LAUNCHY_VERSION_STRING = "3.0.5";
+const int LAUNCHY_VERSION = 308;
+const char* LAUNCHY_VERSION_STRING = "3.0.8";
 
 #if defined(ENVIRONMENT64)
 const char* LAUNCHY_BIT_STRING = "64";
@@ -63,11 +62,16 @@ const uint LABEL_FILE = 0;
 const uint LABEL_AUTOSUGGEST = 1;
 const uint LABEL_HISTORY = 2;
 
-QScopedPointer<AppBase> g_app;
-QScopedPointer<LaunchyWidget> g_mainWidget;
-QScopedPointer<QSettings> g_settings;
-QScopedPointer<Catalog> g_catalog;
-QScopedPointer<CatalogBuilder> g_builder;
 QString g_searchText;
+
+void cleanupGlobalVar() {
+
+    CatalogBuilder::cleanup();
+    LaunchyWidget::cleanup();
+    AppBase::cleanup();
+    g_settings.clear();
+
+    qInfo("cleanupGlobalVar, cleanup finished");
+}
 
 }

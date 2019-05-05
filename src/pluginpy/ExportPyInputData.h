@@ -66,7 +66,7 @@ public:
 
     /** Get a pointer to the best catalog match for this segment of the query */
     CatItem getTopResult();
-        
+
 
 
 private:
@@ -74,4 +74,3 @@ private:
 };
 
 }
-

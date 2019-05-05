@@ -36,7 +36,6 @@ CatItem::CatItem(const std::string& full,
 
 CatItem::CatItem(const launchy::CatItem& item)
     : m_data(item) {
-
 }
 
 const launchy::CatItem& CatItem::getData() const {
@@ -55,12 +54,17 @@ std::string CatItem::iconPath() const {
     return m_data.iconPath.toStdString();
 }
 
+void CatItem::setUsage(int usage) {
+    m_data.usage = usage;
+}
+
 void ExportCatItem(const py::module& m) {
     py::class_<exportpy::CatItem>(m, "CatItem")
         .def(py::init<const std::string&, const std::string&, unsigned int, const std::string&>())
         .def("fullPath", &exportpy::CatItem::fullPath)
         .def("shortName", &exportpy::CatItem::shortName)
-        .def("iconPath", &exportpy::CatItem::iconPath);
+        .def("iconPath", &exportpy::CatItem::iconPath)
+        .def("setUsage", &exportpy::CatItem::setUsage);
 
     py::class_<exportpy::CatItemList>(m, "CatItemList")
         //.def(py::init<>())
@@ -91,4 +95,3 @@ void CatItemList::push_back(const CatItem& item) {
 }
 
 }
-

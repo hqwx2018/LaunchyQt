@@ -2,6 +2,7 @@
 #include "QHotkeyP.h"
 #include <QMultiHash>
 #include <QCoreApplication>
+#include <QDebug>
 
 QScopedPointer<QHotkeyPrivate::EventFilter> QHotkeyPrivate::s_eventFilter;
 QMultiHash<quint32, QHotkey*> QHotkeyPrivate::s_hotKeys;
@@ -36,8 +37,7 @@ void QHotkeyPrivate::unsetKey() {
 }
 
 bool QHotkeyPrivate::activateHotKey(int keyId) {
-    qDebug() << "QHotkeyPrivate::activateHotKey,"
-        << "keyId:" << keyId;
+    qDebug() << "QHotkeyPrivate::activateHotKey, keyId:" << keyId;
     if (s_hotKeys.contains(keyId)) {
         foreach(QHotkey* s, s_hotKeys.values(keyId)) {
             s->activated();
@@ -75,6 +75,7 @@ const QKeySequence& QHotkeyPrivate::keySeq() const {
 }
 
 void QHotkeyPrivate::setKeySeq(const QKeySequence& keySeq) {
+    qDebug() << "QHotkeyPrivate::setKeySeq, keySeq:" << keySeq;
     if (!m_keySeq.isEmpty()) {
         unsetKey();
     }
@@ -83,6 +84,8 @@ void QHotkeyPrivate::setKeySeq(const QKeySequence& keySeq) {
     if (s_hotKeys.count(keyId) == 0) {
         quint32 keycode = toNativeKeycode(getKey(keySeq));
         quint32 mods = toNativeModifiers(getModifiers(keySeq));
+        qDebug() << "QHotkeyPrivate::setKeySeq, keyCode:" << keycode
+            << "mods:" << mods << "keyId:" << keyId;
         if (!registerKey(keycode, mods, keyId)) {
             // register fail
             return;
@@ -112,7 +115,7 @@ quint32 QHotkeyPrivate::toNativeKeycode(Qt::Key key) {
 
 quint32 QHotkeyPrivate::toNativeModifiers(Qt::KeyboardModifiers mod) {
     quint32 modNative = 0;
-    for (int i = 0; s_modMap[i].qtMod != Qt::KeyboardModifierMask; ++i) {
+    for (size_t i = 0; s_modMap[i].qtMod != Qt::KeyboardModifierMask; ++i) {
         if (s_modMap[i].qtMod & mod) {
             modNative |= s_modMap[i].nativeMod;
         }

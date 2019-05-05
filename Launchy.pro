@@ -1,13 +1,17 @@
 TEMPLATE = subdirs
-SUBDIRS = plugins/calcy \
-          plugins/gcalc \
-          plugins/runner \
-          plugins/weby \
-          plugins/verby \
-          src/lib \
+SUBDIRS = src/lib \
+          src/pluginpy \
           src
 
-win32 {
-	SUBDIRS += plugins/controly
-}
 
+win32 {
+SUBDIRS += plugins/verby \
+           plugins/tasky
+
+#           plugins/calcy \
+#           plugins/controly \
+#           plugins/weby \
+#           plugins/runner \
+#           plugins/gcalc \
+
+}

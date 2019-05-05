@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "AppBase.h"
 #include "Logger.h"
 #include "OptionItem.h"
+#include "TranslationManager.h"
 
 static const char* iniName = "/launchy.ini";
 static const char* dbName = "/launchy.db";
@@ -43,6 +44,8 @@ SettingsManager& SettingsManager::instance() {
 }
 
 void SettingsManager::load() {
+    Q_ASSERT(g_app);
+
     // Load settings
     m_dirs = g_app->getDirectories();
     m_portable = QFile::exists(m_dirs["portableConfig"][0] + iniName);
@@ -55,7 +58,7 @@ void SettingsManager::load() {
         writeCatalogDirectories(directories);
     }
 
-    int logLevel = g_settings->value(OPSTION_LOGLEVEL, OPSTION_LOGLEVEL_DEFAULT).toInt();
+    int logLevel = g_settings->value(OPTION_LOGLEVEL, OPTION_LOGLEVEL_DEFAULT).toInt();
     Logger::setLogLevel(logLevel);
 
     qInfo() << "Launchy version:" << LAUNCHY_VERSION_STRING
@@ -93,6 +96,15 @@ void SettingsManager::load() {
     }
 
     QNetworkProxy::setApplicationProxy(proxy);
+
+    // load language translation
+    QString lang = g_settings->value(OPTION_LANGUAGE, OPTION_LANGUAGE_DEFAULT).toString();
+    if (lang.isEmpty()) {
+        TranslationManager::instance().setLocale(QLocale::system());
+    }
+    else {
+        TranslationManager::instance().setLocale(lang);
+    }
 }
 
 bool SettingsManager::isPortable() const {
@@ -132,10 +144,11 @@ void SettingsManager::setPortable(bool makePortable) {
         return;
     }
 
-    qInfo("Converting to %s mode", makePortable ? "portable" : "installed");
+    qInfo("SettingsManager::setPortable, Converting to %s mode",
+          makePortable ? "portable" : "installed");
 
     // Destroy the QSettings object first so it writes every changes to disk
-    g_settings.reset(nullptr);
+    g_settings.clear();
 
     QString oldDir = configDirectory(m_portable);
     QString oldIniName = oldDir + iniName;
@@ -152,20 +165,28 @@ void SettingsManager::setPortable(bool makePortable) {
         QFile::remove(oldIniName);
         QFile::remove(oldDbName);
         QFile::remove(oldHistoryName);
+
+        if (!makePortable) {
+            // if converting to installed mode,
+            // try to remove portable mode config directory if it is empty.
+            // !! This may be dangerous if the old directory could contain other files.
+            // !! MUST be careful when deleting files and directories.
+            QDir(oldDir).rmdir(".");
+        }
     }
     else {
         qWarning("Could not convert to %s mode", makePortable ? "portable" : "installed");
         if (makePortable) {
-            QMessageBox::warning(g_mainWidget.data(), QObject::tr("Launchy"),
-                                 QObject::tr("Could not convert to portable mode."
-                                             " Please check you have write access to the %1 directory.")
+            QMessageBox::warning(g_mainWidget, QString("Launchy"),
+                                 qApp->translate("launchy::OptionDialog",
+                                                 "Could not convert to portable mode, "
+                                                 "Please check the write access to the %1 directory.")
                                  .arg(newDir));
         }
     }
 
     load();
 }
-
 
 // Delete all settings files in both installed and portable directories
 void SettingsManager::removeAll() {

@@ -18,6 +18,7 @@
 */
 
 #include "precompiled.h"
+#include "LaunchyLib.h"
 #include "calcy.h"
 #include "gui.h"
 #include "PluginMsg.h"
@@ -33,11 +34,18 @@ Calcy::Calcy() {
 }
 
 Calcy::~Calcy() {
+    if (m_gui) {
+        delete m_gui;
+        m_gui = nullptr;
+    }
 }
 
 void Calcy::init() {
-    QSettings* settingPtr = (*settings).data();
-    bool useCommaForDecimal = settingPtr->value("calcy/useCommaForDecimal", false).toBool();
+    if (launchy::g_settings.isNull()) {
+        return;
+    }
+
+    bool useCommaForDecimal = launchy::g_settings->value("calcy/useCommaForDecimal", false).toBool();
 
     QString decimal = useCommaForDecimal ? "," : ".";
     QString group = useCommaForDecimal ? "." : ",";
@@ -57,8 +65,9 @@ void Calcy::getName(QString* str) {
 }
 
 void Calcy::getLabels(QList<launchy::InputData>* inputList) {
-    if (inputList->count() > 1)
+    if (inputList->count() > 1) {
         return;
+    }
 
     QString text = inputList->last().getText();
     text.replace(" ", "");
@@ -106,9 +115,9 @@ void Calcy::getResults(QList<launchy::InputData>* inputList, QList<launchy::CatI
     // calculate
     else {
         qDebug() << "Calcy::getResults, calculate";
-        QSettings* settingPtr = (*settings).data();
-        bool useCommaForDecimal = settingPtr->value("calcy/useCommaForDecimal", false).toBool();
-        int outputRounding = settingPtr->value("calcy/outputRounding", 10).toInt();
+
+        bool useCommaForDecimal = launchy::g_settings->value("calcy/useCommaForDecimal", false).toBool();
+        int outputRounding = launchy::g_settings->value("calcy/outputRounding", 10).toInt();
 
         QString decimal = useCommaForDecimal ? "," : ".";
         QString group = useCommaForDecimal ? "." : ",";
@@ -119,8 +128,9 @@ void Calcy::getResults(QList<launchy::InputData>* inputList, QList<launchy::CatI
         qDebug() << "Calcy::getResults, input text(std::string):" << str.c_str();
 
         double res = 0.0;
-        if (!Calculator::calculate(str, res))
+        if (!Calculator::calculate(str, res)) {
             return;
+        }
 
         qDebug() << "Calcy::getResults, result:" << res;
 
@@ -129,10 +139,12 @@ void Calcy::getResults(QList<launchy::InputData>* inputList, QList<launchy::CatI
 
         // Remove any trailing fractional zeros
         if (resStr.contains(decimal)) {
-            while (resStr.endsWith("0"))
+            while (resStr.endsWith("0")) {
                 resStr.chop(1);
-            if (resStr.endsWith(decimal))
+            }
+            if (resStr.endsWith(decimal)) {
                 resStr.chop(1);
+            }
         }
         results->push_front(launchy::CatItem(resStr + ".calcy", resStr, HASH_CALCY, getIcon()));
     }
@@ -141,7 +153,8 @@ void Calcy::getResults(QList<launchy::InputData>* inputList, QList<launchy::CatI
 
 int Calcy::launchItem(QList<launchy::InputData>* inputData, launchy::CatItem* item) {
     Q_UNUSED(inputData)
-    if ((*settings)->value("calcy/copyToClipboard", true).toBool()) {
+    if (!launchy::g_settings.isNull()
+        && launchy::g_settings->value("calcy/copyToClipboard", true).toBool()) {
         QClipboard* clipboard = QApplication::clipboard();
         clipboard->setText(item->shortName);
     }
@@ -160,10 +173,12 @@ void Calcy::setPath(const QString* path) {
 void Calcy::doDialog(QWidget* parent, QWidget** newDlg) {
     if (!m_gui.isNull()) {
         m_gui->close();
+        delete m_gui;
+        m_gui = nullptr;
     }
 
-    m_gui.reset(new Gui(parent));
-    *newDlg = m_gui.get();
+    m_gui = new Gui(parent);
+    *newDlg = m_gui.data();
     init();
 }
 
@@ -172,7 +187,9 @@ void Calcy::endDialog(bool accept) {
         m_gui->writeOptions();
         init();
     }
-    m_gui.reset();
+    m_gui->close();
+    delete m_gui;
+    m_gui = nullptr;
 }
 
 int Calcy::msg(int msgId, void* wParam, void* lParam) {

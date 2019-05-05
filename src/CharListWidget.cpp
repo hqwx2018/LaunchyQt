@@ -18,9 +18,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "CharListWidget.h"
-#include "GlobalVar.h"
 #include "IconDelegate.h"
 #include "OptionItem.h"
+#include "LaunchyLib.h"
 
 namespace launchy {
 CharListWidget::CharListWidget(QWidget* parent)
@@ -29,7 +29,7 @@ CharListWidget::CharListWidget(QWidget* parent)
       m_defaultListDelegate(itemDelegate()),
       m_alternativePath(new QLabel(this)) {
 #ifdef Q_OS_LINUX
-    setWindowFlags(windowFlags() | Qt::Tool | Qt::SplashScreen);
+    setWindowFlags(Qt::Dialog | Qt::ToolTip);
 #else
     setWindowFlags(Qt::Window | Qt::Tool | Qt::FramelessWindowHint);
 #endif

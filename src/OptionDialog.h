@@ -35,7 +35,7 @@ public:
     virtual ~OptionDialog();
 
 public:
-    virtual void setVisible(bool visible);
+    void retranslateUi();
 
 public slots:
     virtual void accept();
@@ -43,11 +43,12 @@ public slots:
 
 protected:
     virtual void showEvent(QShowEvent* event);
+    virtual void changeEvent(QEvent* event);
 
 private:
     // general
     void initGeneralWidget();
-    void saveGeneralSettings();
+    bool saveGeneralSettings();
     // skin
     void initSkinWidget();
     void saveSkinSettings();
@@ -104,27 +105,24 @@ private slots:
     // system
     void autoRebuildCheckChanged(int state);
     void logLevelChanged(int index);
+    void languageChanged(int index);
 
 private:
     Ui::OptionDialog* m_pUi;
-
     FileBrowserDelegate* m_directoryItemDelegate;
-    int m_currentPlugin;
-    bool m_needRescan;
-    QStringList metaKeys;
-    QStringList actionKeys;
-    QList<int> iMetaKeys;
-    QList<int> iActionKeys;
-    QList<Directory> m_memDirs;
 
-    bool m_showLaunchy;
+    QStringList m_metaKeys;
+    QStringList m_actionKeys;
+    QList<int> m_iMetaKeys;
+    QList<int> m_iActionKeys;
+    QList<Directory> m_memDirs;
 
     //QList<QPair<QString, uint>> pluginNames;
     //QVBoxLayout* pluginLayout;
     //QString lastDir;
 
-    //static QByteArray s_windowGeometry;
-    //static int s_currentTab;
-    //static int s_currentPlugin;
+    static QByteArray s_lastWindowGeometry;
+    static int s_lastTab;
+    static int s_lastPlugin;
 };
 }

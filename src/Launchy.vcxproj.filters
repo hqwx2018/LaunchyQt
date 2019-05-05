@@ -58,9 +58,6 @@
     <Filter Include="Widgets">
       <UniqueIdentifier>{2e563e79-d236-4335-b57b-008e9b2b97a2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Application">
-      <UniqueIdentifier>{6391ff04-2099-4a6a-96de-cbf68673a03f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="SingleApplication">
       <UniqueIdentifier>{1629723e-3465-48c1-9841-da5390f9faf8}</UniqueIdentifier>
     </Filter>
@@ -79,6 +76,9 @@
     </Filter>
     <Filter Include="PluginHandler">
       <UniqueIdentifier>{e4b012c8-d7ac-4991-9dfe-8b61a92d4b00}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Windows">
+      <UniqueIdentifier>{6391ff04-2099-4a6a-96de-cbf68673a03f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -113,13 +113,10 @@
       <Filter>Widgets</Filter>
     </ClCompile>
     <ClCompile Include="win\AppWin.cpp">
-      <Filter>Application</Filter>
+      <Filter>Windows</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="AppBase.cpp">
-      <Filter>Application</Filter>
     </ClCompile>
     <ClCompile Include="..\deps\QHotkey\QHotkey.cpp">
       <Filter>QHotKey</Filter>
@@ -137,13 +134,13 @@
       <Filter>SingleApplication</Filter>
     </ClCompile>
     <ClCompile Include="win\IconProviderWin.cpp">
-      <Filter>Application</Filter>
+      <Filter>Windows</Filter>
     </ClCompile>
     <ClCompile Include="win\UtilWin.cpp">
-      <Filter>Application</Filter>
+      <Filter>Windows</Filter>
     </ClCompile>
     <ClCompile Include="win\CrashDumper.cpp">
-      <Filter>Application</Filter>
+      <Filter>Windows</Filter>
     </ClCompile>
     <ClCompile Include="IconExtractor.cpp">
       <Filter>Source Files</Filter>
@@ -286,6 +283,15 @@
     <ClCompile Include="GeneratedFiles\Release\moc_UpdateChecker.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="IconProviderBase.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AppBase.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TranslationManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommandHistory.h">
@@ -309,17 +315,14 @@
     <ClInclude Include="GeneratedFiles\ui_OptionDialog.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
-    <ClInclude Include="AppBase.h">
-      <Filter>Application</Filter>
-    </ClInclude>
     <ClInclude Include="win\IconProviderWin.h">
-      <Filter>Application</Filter>
+      <Filter>Windows</Filter>
     </ClInclude>
     <ClInclude Include="win\UtilWin.h">
-      <Filter>Application</Filter>
+      <Filter>Windows</Filter>
     </ClInclude>
     <ClInclude Include="win\CrashDumper.h">
-      <Filter>Application</Filter>
+      <Filter>Windows</Filter>
     </ClInclude>
     <ClInclude Include="GlobalVar.h">
       <Filter>Header Files</Filter>
@@ -337,6 +340,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="OptionItem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IconProviderBase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AppBase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TranslationManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -357,7 +369,7 @@
       <Filter>Form Files</Filter>
     </CustomBuild>
     <CustomBuild Include="win\AppWin.h">
-      <Filter>Application</Filter>
+      <Filter>Windows</Filter>
     </CustomBuild>
     <CustomBuild Include="..\deps\QHotkey\QHotkey.h">
       <Filter>QHotKey</Filter>
@@ -394,6 +406,18 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <None Include="resources\basicskin.qss">
+      <Filter>Resource Files</Filter>
+    </None>
+    <CustomBuild Include="launchy.qrc">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <None Include="resources\launchy128.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="resources\launchy16.png">
+      <Filter>Resource Files</Filter>
+    </None>
     <None Include="..\translations\launchy_de.ts">
       <Filter>Translation Files</Filter>
     </None>
@@ -409,28 +433,14 @@
     <None Include="..\translations\launchy_nl.ts">
       <Filter>Translation Files</Filter>
     </None>
-    <None Include="..\translations\launchy_rus.ts">
+    <None Include="..\translations\launchy_ru.ts">
+      <Filter>Translation Files</Filter>
+    </None>
+    <None Include="..\translations\launchy_zh_CN.ts">
       <Filter>Translation Files</Filter>
     </None>
     <None Include="..\translations\launchy_zh_TW.ts">
       <Filter>Translation Files</Filter>
-    </None>
-    <None Include="..\translations\launchy_zh.ts">
-      <Filter>Translation Files</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="resources\basicskin.qss">
-      <Filter>Resource Files</Filter>
-    </None>
-    <CustomBuild Include="launchy.qrc">
-      <Filter>Resource Files</Filter>
-    </CustomBuild>
-    <None Include="resources\launchy128.png">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="resources\launchy16.png">
-      <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

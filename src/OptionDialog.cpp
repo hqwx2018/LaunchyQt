@@ -32,6 +32,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "OptionItem.h"
 #include "UpdateChecker.h"
 #include "FileBrowserDelegate.h"
+#include "LaunchyLib.h"
+#include "TranslationManager.h"
 
 // for QNetworkProxy::ProxyType in QVariant
 Q_DECLARE_METATYPE(QNetworkProxy::ProxyType)
@@ -39,19 +41,20 @@ Q_DECLARE_METATYPE(QNetworkProxy::ProxyType)
 namespace launchy {
 
 // for qt flags
-// check this page https://stackoverflow.com/questions/10755058/qflags-enum-type-conversion-fails-all-of-a-sudden
+// https://stackoverflow.com/questions/10755058/qflags-enum-type-conversion-fails-all-of-a-sudden
 using ::operator|;
 
-// QByteArray OptionDialog::s_windowGeometry;
-// int OptionDialog::s_currentTab;
-//int OptionDialog::s_currentPlugin;
+QByteArray OptionDialog::s_lastWindowGeometry;
+int OptionDialog::s_lastTab = 0;
+int OptionDialog::s_lastPlugin = -1;
 
-OptionDialog::OptionDialog(QWidget * parent)
+OptionDialog::OptionDialog(QWidget* parent)
     : QDialog(parent),
       m_pUi(new Ui::OptionDialog),
-      m_directoryItemDelegate(new FileBrowserDelegate(this, FileBrowser::Directory)),
-      m_currentPlugin(-1),
-      m_needRescan(false) {
+      m_directoryItemDelegate(new FileBrowserDelegate(this, FileBrowser::Directory)) {
+
+    setObjectName("options");
+    g_needRebuildCatalog.storeRelease(0);
 
     m_pUi->setupUi(this);
 
@@ -60,9 +63,11 @@ OptionDialog::OptionDialog(QWidget * parent)
     windowsFlags = windowsFlags | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowStaysOnTopHint;
     setWindowFlags(windowsFlags);
 
-    //restoreGeometry(s_windowGeometry);
-    m_pUi->tabWidget->setCurrentIndex(0);
+    restoreGeometry(s_lastWindowGeometry);
+    m_pUi->tabWidget->setCurrentIndex(s_lastTab);
     connect(m_pUi->tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabChanged(int)));
+    connect(m_pUi->pbOk, SIGNAL(clicked()), this, SLOT(accept()));
+    connect(m_pUi->pbCancel, SIGNAL(clicked()), this, SLOT(reject()));
 
     initGeneralWidget();
 
@@ -81,31 +86,22 @@ OptionDialog::OptionDialog(QWidget * parent)
     initAboutWidget();
 }
 
-
 OptionDialog::~OptionDialog() {
-    if (g_builder != NULL) {
-        disconnect(g_builder.data(), SIGNAL(catalogIncrement(int)), this, SLOT(catalogProgressUpdated(int)));
-        disconnect(g_builder.data(), SIGNAL(catalogFinished()), this, SLOT(catalogBuilt()));
+    if (g_builder) {
+        disconnect(g_builder, SIGNAL(catalogIncrement(int)), this, SLOT(catalogProgressUpdated(int)));
+        disconnect(g_builder, SIGNAL(catalogFinished()), this, SLOT(catalogBuilt()));
     }
 
-//     s_currentTab = m_pUi->tabWidget->currentIndex();
-//     s_windowGeometry = saveGeometry();
+    s_lastTab = m_pUi->tabWidget->currentIndex();
+    s_lastWindowGeometry = saveGeometry();
 
     delete m_pUi;
     m_pUi = nullptr;
 }
 
-
-void OptionDialog::setVisible(bool visible) {
-    QDialog::setVisible(visible);
-
-    if (visible) {
-        connect(m_pUi->skinList, SIGNAL(currentTextChanged(const QString)),
-                this, SLOT(skinChanged(const QString)));
-        skinChanged(m_pUi->skinList->currentItem()->text());
-    }
+void OptionDialog::retranslateUi() {
+    m_pUi->retranslateUi(this);
 }
-
 
 void OptionDialog::accept() {
     if (g_settings.isNull()) {
@@ -113,7 +109,7 @@ void OptionDialog::accept() {
         return;
     }
 
-    saveGeneralSettings();
+    bool bSuccess = saveGeneralSettings();
 
     saveSkinSettings();
 
@@ -129,53 +125,81 @@ void OptionDialog::accept() {
 
     g_settings->sync();
 
+    if (!bSuccess) {
+        return;
+    }
+
     QDialog::accept();
 
-    if (m_needRescan) {
+    if (g_needRebuildCatalog.fetchAndStoreRelaxed(0) > 0) {
         g_mainWidget->buildCatalog();
     }
 
-    if (m_showLaunchy) {
-        g_mainWidget->showLaunchy();
-    }
+    g_mainWidget->showLaunchy();
 }
 
 
 void OptionDialog::reject() {
-    if (m_currentPlugin >= 0) {
-        QListWidgetItem* item = m_pUi->plugList->item(m_currentPlugin);
+    if (s_lastPlugin >= 0) {
+        QListWidgetItem* item = m_pUi->plugList->item(s_lastPlugin);
         PluginHandler::instance().endDialog(item->data(Qt::UserRole).toUInt(), false);
     }
 
     QDialog::reject();
+    g_mainWidget->showLaunchy();
 }
 
 void OptionDialog::showEvent(QShowEvent* event) {
+    // skin
+    if (QListWidgetItem* pItem = m_pUi->skinList->currentItem()) {
+        skinChanged(pItem->text());
+    }
 
-    if (m_currentPlugin < 0 && m_pUi->plugList->count() > 0) {
+    connect(m_pUi->skinList, SIGNAL(currentTextChanged(const QString)),
+            this, SLOT(skinChanged(const QString)));
+
+    // plugin
+    if (s_lastPlugin < 0 && m_pUi->plugList->count() > 0) {
         m_pUi->plugList->setCurrentRow(0);
     }
 
-    if (m_currentPlugin >= 0
-        && m_currentPlugin < m_pUi->plugList->count()) {
-        QListWidgetItem* item = m_pUi->plugList->item(m_currentPlugin);
+    if (s_lastPlugin >= 0
+        && s_lastPlugin < m_pUi->plugList->count()) {
+        QListWidgetItem* item = m_pUi->plugList->item(s_lastPlugin);
         loadPluginDialog(item);
+        m_pUi->plugList->setCurrentRow(s_lastPlugin);
     }
+
+    pluginChanged(m_pUi->plugList->currentRow());
+
+    connect(m_pUi->plugList, SIGNAL(currentRowChanged(int)),
+            this, SLOT(pluginChanged(int)));
 
     QDialog::showEvent(event);
 }
 
+void OptionDialog::changeEvent(QEvent* event) {
+    if (event->type() == QEvent::LanguageChange) {
+        // retranslate designer form (single inheritance approach)
+        retranslateUi();
+    }
+
+    // call base class implementation
+    QDialog::changeEvent(event);
+}
+
 void OptionDialog::tabChanged(int tab) {
-    Q_UNUSED(tab)
     // Redraw the current skin (necessary because of dialog resizing issues)
-    if (m_pUi->tabWidget->currentWidget()->objectName() == "Skins") {
-        skinChanged(m_pUi->skinList->currentItem()->text());
+    if (m_pUi->tabWidget->widget(tab)->objectName() == "Skins") {
+        if (QListWidgetItem* pItem = m_pUi->skinList->currentItem()) {
+            skinChanged(pItem->text());
+        }
     }
-    else if (m_pUi->tabWidget->currentWidget()->objectName() == "Plugins") {
-        // We've currently no way of checking if a plugin requires a catalog rescan
-        // so assume that we need one if the user has viewed the plugins tab
-        m_needRescan = true;
-    }
+//     else if (m_pUi->tabWidget->currentWidget()->objectName() == "Plugins") {
+//         // We've currently no way of checking if a plugin requires a catalog rescan
+//         // so assume that we need one if the user has viewed the plugins tab
+//         ++g_needRebuildCatalog;
+//     }
 }
 
 
@@ -187,20 +211,20 @@ void OptionDialog::onAppStyleChanged(int index) {
 void OptionDialog::autoRebuildCheckChanged(int state) {
     m_pUi->genRebuildMinutes->setEnabled(state > 0);
     if (m_pUi->genRebuildMinutes->value() <= 0) {
-        m_pUi->genRebuildMinutes->setValue(OPSTION_REBUILDTIMER_DEFAULT);
+        m_pUi->genRebuildMinutes->setValue(OPTION_REBUILDTIMER_DEFAULT);
     }
 }
 
-void OptionDialog::skinChanged(const QString& newSkin)
-{
-    if (newSkin.count() == 0)
+void OptionDialog::skinChanged(const QString& newSkin) {
+    if (newSkin.isEmpty()) {
         return;
+    }
 
     // Find the skin with this name
     QString directory = SettingsManager::instance().skinPath(newSkin);
 
     // Load up the author file
-    if (directory.length() == 0) {
+    if (directory.isEmpty()) {
         m_pUi->authorInfo->setText("");
         return;
     }
@@ -261,34 +285,34 @@ void OptionDialog::skinChanged(const QString& newSkin)
     }
 }
 
-
 void OptionDialog::pluginChanged(int row) {
-    m_pUi->plugBox->setTitle(tr("Plugin options"));
-
-    if (m_pUi->plugBox->layout() != NULL) {
-        for (int i = 1; i < m_pUi->plugBox->layout()->count(); ++i) {
-            m_pUi->plugBox->layout()->removeItem(m_pUi->plugBox->layout()->itemAt(i));
-        }
-    }
-
     // Close any current plugin dialogs
-    if (m_currentPlugin >= 0) {
-        QListWidgetItem* item = m_pUi->plugList->item(m_currentPlugin);
+    if (s_lastPlugin >= 0) {
+        QListWidgetItem* item = m_pUi->plugList->item(s_lastPlugin);
         PluginHandler::instance().endDialog(item->data(Qt::UserRole).toUInt(), true);
     }
 
     // Open the new plugin dialog
-    m_currentPlugin = row;
+    s_lastPlugin = row;
     if (row >= 0) {
         loadPluginDialog(m_pUi->plugList->item(row));
     }
 }
 
 void OptionDialog::loadPluginDialog(QListWidgetItem* item) {
+
+    m_pUi->plugBox->setTitle(tr("Plugin options"));
+    QLayout* pLayout = m_pUi->plugBox->layout();
+    if (pLayout != NULL) {
+        while (QLayoutItem* child = pLayout->takeAt(0)) {
+            delete child;
+        }
+    }
+
     QWidget* win = PluginHandler::instance().doDialog(m_pUi->plugBox, item->data(Qt::UserRole).toUInt());
     if (win != NULL) {
-        if (m_pUi->plugBox->layout() != NULL) {
-            m_pUi->plugBox->layout()->addWidget(win);
+        if (pLayout != NULL) {
+            pLayout->addWidget(win);
         }
 
         win->show();
@@ -299,14 +323,14 @@ void OptionDialog::loadPluginDialog(QListWidgetItem* item) {
 }
 
 void OptionDialog::pluginItemChanged(QListWidgetItem* item) {
-    int row = m_pUi->plugList->currentRow();
+    int row = m_pUi->plugList->row(item);
     if (row == -1) {
         return;
     }
 
-    // Close any current plugin dialogs
-    if (m_currentPlugin >= 0) {
-        QListWidgetItem* item = m_pUi->plugList->item(m_currentPlugin);
+    // Close current plugin dialogs
+    if (s_lastPlugin == row && item->checkState() != Qt::Checked) {
+        QListWidgetItem* item = m_pUi->plugList->item(s_lastPlugin);
         PluginHandler::instance().endDialog(item->data(Qt::UserRole).toUInt(), true);
     }
 
@@ -328,15 +352,27 @@ void OptionDialog::pluginItemChanged(QListWidgetItem* item) {
     // Reload the plugins
     PluginHandler::instance().loadPlugins();
 
-    // If enabled, reload the dialog
-    if (item->checkState() == Qt::Checked) {
-        loadPluginDialog(item);
+    if (row != m_pUi->plugList->currentRow()) {
+        m_pUi->plugList->setCurrentRow(row);
+    }
+    else {
+        // If enabled, reload the dialog
+        if (item->checkState() == Qt::Checked) {
+            loadPluginDialog(item);
+        }
     }
 }
 
-
 void OptionDialog::logLevelChanged(int index) {
     Logger::setLogLevel(index);
+}
+
+void OptionDialog::languageChanged(int index) {
+    QString loc = m_pUi->cbLanguage->itemData(index).toString();
+    g_settings->setValue(OPTION_LANGUAGE, loc);
+
+    qDebug() << "OptionDialog::languageChanged, loc =" << loc;
+    TranslationManager::instance().setLocale(loc);
 }
 
 void OptionDialog::onProxyTypeChanged(int index) {
@@ -365,7 +401,7 @@ void OptionDialog::catalogBuilt() {
     m_pUi->catProgress->setVisible(false);
     m_pUi->catRescan->setEnabled(true);
 
-    m_pUi->catSize->setText(tr("Index has %n items", "", g_catalog->count()));
+    m_pUi->catSize->setText(tr("Index has %n item(s)", "", g_catalog->count()));
     m_pUi->catSize->setVisible(true);
 }
 
@@ -374,7 +410,7 @@ void OptionDialog::catRescanClicked(bool val) {
     // Apply Directory Options
     SettingsManager::instance().writeCatalogDirectories(m_memDirs);
 
-    m_needRescan = false;
+    g_needRebuildCatalog.storeRelease(0);
     m_pUi->catRescan->setEnabled(false);
     g_mainWidget->buildCatalog();
 }
@@ -387,7 +423,7 @@ void OptionDialog::catTypesDirChanged(int state) {
         return;
     m_memDirs[row].indexDirs = m_pUi->catCheckDirs->isChecked();
 
-    m_needRescan = true;
+    ++g_needRebuildCatalog;
 }
 
 void OptionDialog::catTypesExeChanged(int state) {
@@ -397,7 +433,7 @@ void OptionDialog::catTypesExeChanged(int state) {
         return;
     m_memDirs[row].indexExe = m_pUi->catCheckBinaries->isChecked();
 
-    m_needRescan = true;
+    ++g_needRebuildCatalog;
 }
 
 void OptionDialog::catDirItemChanged(QListWidgetItem* item) {
@@ -409,7 +445,7 @@ void OptionDialog::catDirItemChanged(QListWidgetItem* item) {
 
     m_memDirs[row].name = item->text();
 
-    m_needRescan = true;
+    ++g_needRebuildCatalog;
 }
 
 
@@ -432,24 +468,37 @@ void OptionDialog::catDirDrop(QDropEvent *event) {
 }
 
 void OptionDialog::dirRowChanged(int row) {
-    if (row == -1)
+    if (row == -1) {
         return;
+    }
 
+    m_pUi->catTypes->blockSignals(true);
     m_pUi->catTypes->clear();
     foreach(QString str, m_memDirs[row].types) {
         QListWidgetItem* item = new QListWidgetItem(str, m_pUi->catTypes);
         item->setFlags(item->flags() | Qt::ItemIsEditable);
     }
-    m_pUi->catCheckDirs->setChecked(m_memDirs[row].indexDirs);
-    m_pUi->catCheckBinaries->setChecked(m_memDirs[row].indexExe);
-    m_pUi->catDepth->setValue(m_memDirs[row].depth);
+    m_pUi->catTypes->blockSignals(false);
 
-    m_needRescan = true;
+    m_pUi->catCheckDirs->blockSignals(true);
+    m_pUi->catCheckDirs->setChecked(m_memDirs[row].indexDirs);
+    m_pUi->catCheckDirs->blockSignals(false);
+
+    m_pUi->catCheckBinaries->blockSignals(true);
+    m_pUi->catCheckBinaries->setChecked(m_memDirs[row].indexExe);
+    m_pUi->catCheckBinaries->blockSignals(false);
+
+    m_pUi->catDepth->blockSignals(true);
+    m_pUi->catDepth->setValue(m_memDirs[row].depth);
+    m_pUi->catDepth->blockSignals(false);
 }
 
 void OptionDialog::catDirMinusClicked(bool c) {
     Q_UNUSED(c)
     int dirRow = m_pUi->catDirectories->currentRow();
+    if (dirRow == -1) {
+        return;
+    }
 
     delete m_pUi->catDirectories->takeItem(dirRow);
     m_pUi->catTypes->clear();
@@ -459,7 +508,6 @@ void OptionDialog::catDirMinusClicked(bool c) {
     if (dirRow >= m_pUi->catDirectories->count()
         && m_pUi->catDirectories->count() > 0) {
         m_pUi->catDirectories->setCurrentRow(m_pUi->catDirectories->count() - 1);
-        dirRowChanged(m_pUi->catDirectories->count() - 1);
     }
 }
 
@@ -490,20 +538,21 @@ void OptionDialog::initGeneralWidget() {
     m_pUi->genOpaqueness->setValue(g_settings->value(OPSTION_OPAQUENESS, OPSTION_OPAQUENESS_DEFAULT).toInt());
     m_pUi->genFadeIn->setValue(g_settings->value(OPSTION_FADEIN, OPSTION_FADEIN_DEFAULT).toInt());
     m_pUi->genFadeOut->setValue(g_settings->value(OPSTION_FADEOUT, OPSTION_FADEOUT_DEFAULT).toInt());
-    connect(m_pUi->genOpaqueness, SIGNAL(sliderMoved(int)), g_mainWidget.data(), SLOT(setOpaqueness(int)));
+
+    connect(m_pUi->genOpaqueness, SIGNAL(sliderMoved(int)), g_mainWidget, SLOT(setOpaqueness(int)));
 
 #ifdef Q_OS_MAC
-    metaKeys << QString("") << QString("Alt") << QString("Command") << QString("Shift") << QString("Control")
+    m_metaKeys << QString("") << QString("Alt") << QString("Command") << QString("Shift") << QString("Control")
         << QString("Command+Alt") << QString("Command+Shift") << QString("Command+Control");
 #else
-    metaKeys << QString("") << QString("Alt") << QString("Control") << QString("Shift") << QString("Win")
+    m_metaKeys << QString("") << QString("Alt") << QString("Control") << QString("Shift") << QString("Win")
         << QString("Ctrl+Alt") << QString("Ctrl+Shift") << QString("Ctrl+Win");
 #endif
-    iMetaKeys << Qt::NoModifier << Qt::AltModifier << Qt::ControlModifier << Qt::ShiftModifier << Qt::MetaModifier
+    m_iMetaKeys << Qt::NoModifier << Qt::AltModifier << Qt::ControlModifier << Qt::ShiftModifier << Qt::MetaModifier
         << (Qt::ControlModifier | Qt::AltModifier) << (Qt::ControlModifier | Qt::ShiftModifier)
         << (Qt::ControlModifier | Qt::MetaModifier);
 
-    actionKeys << QString("Space") << QString("Tab") << QString("Caps Lock") << QString("Backspace")
+    m_actionKeys << QString("Space") << QString("Tab") << QString("Caps Lock") << QString("Backspace")
         << QString("Enter") << QString("Esc") << QString("Insert") << QString("Delete") << QString("Home")
         << QString("End") << QString("Page Up") << QString("Page Down") << QString("Print") << QString("Scroll Lock")
         << QString("Pause") << QString("Num Lock")
@@ -512,7 +561,7 @@ void OptionDialog::initGeneralWidget() {
         << QString("F6") << QString("F7") << QString("F8") << QString("F9") << QString("F10")
         << QString("F11") << QString("F12") << QString("F13") << QString("F14") << QString("F15");
 
-    iActionKeys << Qt::Key_Space << Qt::Key_Tab << Qt::Key_CapsLock << Qt::Key_Backspace << Qt::Key_Enter << Qt::Key_Escape <<
+    m_iActionKeys << Qt::Key_Space << Qt::Key_Tab << Qt::Key_CapsLock << Qt::Key_Backspace << Qt::Key_Enter << Qt::Key_Escape <<
         Qt::Key_Insert << Qt::Key_Delete << Qt::Key_Home << Qt::Key_End << Qt::Key_PageUp << Qt::Key_PageDown <<
         Qt::Key_Print << Qt::Key_ScrollLock << Qt::Key_Pause << Qt::Key_NumLock <<
         Qt::Key_Up << Qt::Key_Down << Qt::Key_Left << Qt::Key_Right <<
@@ -520,19 +569,19 @@ void OptionDialog::initGeneralWidget() {
         Qt::Key_F9 << Qt::Key_F10 << Qt::Key_F11 << Qt::Key_F12 << Qt::Key_F13 << Qt::Key_F14 << Qt::Key_F15;
 
     for (int i = '0'; i <= '9'; ++i) {
-        actionKeys << QString(QChar(i));
-        iActionKeys << i;
+        m_actionKeys << QString(QChar(i));
+        m_iActionKeys << i;
     }
 
     for (int i = 'A'; i <= 'Z'; ++i) {
-        actionKeys << QString(QChar(i));
-        iActionKeys << i;
+        m_actionKeys << QString(QChar(i));
+        m_iActionKeys << i;
     }
 
-    actionKeys << "`" << "-" << "=" << "[" << "]"
+    m_actionKeys << "`" << "-" << "=" << "[" << "]"
         << ";" << "'" << "#" << "\\" << "," << "." << "/";
 
-    iActionKeys << '`' << '-' << '=' << '[' << ']'
+    m_iActionKeys << '`' << '-' << '=' << '[' << ']'
         << ';' << '\'' << '#' << '\\' << ',' << '.' << '/';
 
     // Find the current hotkey
@@ -540,18 +589,18 @@ void OptionDialog::initGeneralWidget() {
     int meta = hotkey & (Qt::AltModifier | Qt::MetaModifier | Qt::ShiftModifier | Qt::ControlModifier);
     hotkey &= ~(Qt::AltModifier | Qt::MetaModifier | Qt::ShiftModifier | Qt::ControlModifier);
 
-    for (int i = 0; i < metaKeys.count(); ++i) {
-        m_pUi->genModifierBox->addItem(metaKeys[i]);
-        if (iMetaKeys[i] == meta)
+    for (int i = 0; i < m_metaKeys.count(); ++i) {
+        m_pUi->genModifierBox->addItem(m_metaKeys[i]);
+        if (m_iMetaKeys[i] == meta)
             m_pUi->genModifierBox->setCurrentIndex(i);
     }
 
-    for (int i = 0; i < actionKeys.count(); ++i) {
-        m_pUi->genKeyBox->addItem(actionKeys[i]);
-        if (iActionKeys[i] == hotkey)
+    for (int i = 0; i < m_actionKeys.count(); ++i) {
+        m_pUi->genKeyBox->addItem(m_actionKeys[i]);
+        if (m_iActionKeys[i] == hotkey)
             m_pUi->genKeyBox->setCurrentIndex(i);
     }
-    
+
     QString appStyle = g_settings->value(OPTION_APPSTYLE, OPTION_APPSTYLE_DEFAULT).toString();
 
     QStringList styles = QStyleFactory::keys();
@@ -586,13 +635,13 @@ void OptionDialog::initGeneralWidget() {
             this, SLOT(onAppStyleChanged(int)));
 }
 
-void OptionDialog::saveGeneralSettings() {
+bool OptionDialog::saveGeneralSettings() {
     // See if the new hotkey works, if not we're not leaving the dialog.
-    QKeySequence hotkey(iMetaKeys[m_pUi->genModifierBox->currentIndex()] + iActionKeys[m_pUi->genKeyBox->currentIndex()]);
+    QKeySequence hotkey(m_iMetaKeys[m_pUi->genModifierBox->currentIndex()] + m_iActionKeys[m_pUi->genKeyBox->currentIndex()]);
     if (!g_mainWidget->setHotkey(hotkey)) {
         QMessageBox::warning(this, tr("Launchy"),
                              tr("The hotkey %1 is already in use, please select another.").arg(hotkey.toString()));
-        return;
+        return false;
     }
 
     g_settings->setValue(OPSTION_HOTKEY, hotkey.count() > 0 ? hotkey[0] : OPSTION_HOTKEY_DEFAULT);
@@ -601,7 +650,7 @@ void OptionDialog::saveGeneralSettings() {
     //	g_settings->setValue("GenOps/showtrayicon", genShowTrayIcon->isChecked());
     g_settings->setValue(OPSTION_ALWAYSSHOW, m_pUi->genAlwaysShow->isChecked());
     g_settings->setValue(OPSTION_ALWAYSTOP, m_pUi->genAlwaysTop->isChecked());
-    
+
     g_settings->setValue(OPSTION_DECORATETEXT, m_pUi->genDecorateText->isChecked());
     g_settings->setValue(OPSTION_HIDEIFLOSTFOCUS, m_pUi->genHideFocus->isChecked());
     g_settings->setValue(OPSTION_ALWAYSCENTER, (m_pUi->genHCenter->isChecked() ? 1 : 0) | (m_pUi->genVCenter->isChecked() ? 2 : 0));
@@ -625,10 +674,12 @@ void OptionDialog::saveGeneralSettings() {
     g_settings->setValue(OPTION_APPSTYLE, appStyle);
 
     // Now save the options that require launchy to be shown or redrawed
-    m_showLaunchy = g_mainWidget->setAlwaysShow(m_pUi->genAlwaysShow->isChecked());
-    m_showLaunchy |= g_mainWidget->setAlwaysTop(m_pUi->genAlwaysTop->isChecked());
+    g_mainWidget->setAlwaysShow(m_pUi->genAlwaysShow->isChecked());
+    g_mainWidget->setAlwaysTop(m_pUi->genAlwaysTop->isChecked());
 
     g_mainWidget->setOpaqueness(m_pUi->genOpaqueness->value());
+
+    return true;
 }
 
 void OptionDialog::initSkinWidget() {
@@ -651,7 +702,7 @@ void OptionDialog::initSkinWidget() {
             if (!f.exists())
                 continue;
 
-            QListWidgetItem* item = new QListWidgetItem(d);
+            QListWidgetItem* item = new QListWidgetItem(d, m_pUi->skinList);
             m_pUi->skinList->addItem(item);
 
             if (skinName.compare(d, Qt::CaseInsensitive) == 0)
@@ -663,12 +714,16 @@ void OptionDialog::initSkinWidget() {
 
 void OptionDialog::saveSkinSettings() {
     // Apply Skin Options
+    QListWidgetItem* pCurrentItem = m_pUi->skinList->currentItem();
+    if (!pCurrentItem) {
+        return;
+    }
+
+    QString currentSkinName = pCurrentItem->text();
     QString prevSkinName = g_settings->value(OPSTION_SKIN, OPSTION_SKIN_DEFAULT).toString();
-    QString currentSkinName = m_pUi->skinList->currentItem()->text();
-    if (m_pUi->skinList->currentRow() >= 0 && currentSkinName != prevSkinName) {
+    if (currentSkinName != prevSkinName) {
         g_settings->setValue(OPSTION_SKIN, currentSkinName);
         g_mainWidget->setSkin(currentSkinName);
-        m_showLaunchy |= true;
     }
 }
 
@@ -704,8 +759,8 @@ void OptionDialog::initCatalogWidget() {
     m_pUi->catSize->setText(tr("Index has %n item(s)", "N/A", g_catalog->count()));
 
     m_pUi->catProgress->setVisible(false);
-    connect(g_builder.data(), SIGNAL(catalogIncrement(int)), this, SLOT(catalogProgressUpdated(int)));
-    connect(g_builder.data(), SIGNAL(catalogFinished()), this, SLOT(catalogBuilt()));
+    connect(g_builder, SIGNAL(catalogIncrement(int)), this, SLOT(catalogProgressUpdated(int)));
+    connect(g_builder, SIGNAL(catalogFinished()), this, SLOT(catalogBuilt()));
     if (g_builder->isRunning()) {
         catalogProgressUpdated(g_builder->getProgress());
     }
@@ -719,7 +774,7 @@ void OptionDialog::saveCatalogSettings() {
 
 void OptionDialog::initPluginsWidget() {
     // Load up the plugins
-    PluginHandler::instance().loadPlugins();
+    //PluginHandler::instance().loadPlugins();
     foreach(const PluginInfo& info, PluginHandler::instance().getPlugins()) {
         QListWidgetItem* item = new QListWidgetItem(info.name, m_pUi->plugList);
         m_pUi->plugList->addItem(item);
@@ -734,13 +789,14 @@ void OptionDialog::initPluginsWidget() {
     }
     m_pUi->plugList->sortItems();
 
-    connect(m_pUi->plugList, SIGNAL(currentRowChanged(int)), this, SLOT(pluginChanged(int)));
-    connect(m_pUi->plugList, SIGNAL(itemChanged(QListWidgetItem*)), this, SLOT(pluginItemChanged(QListWidgetItem*)));
+    // plugin item check state change
+    connect(m_pUi->plugList, SIGNAL(itemChanged(QListWidgetItem*)),
+            this, SLOT(pluginItemChanged(QListWidgetItem*)));
 }
 
 void OptionDialog::savePluginsSettings() {
-    if (m_currentPlugin >= 0) {
-        QListWidgetItem* item = m_pUi->plugList->item(m_currentPlugin);
+    if (s_lastPlugin >= 0) {
+        QListWidgetItem* item = m_pUi->plugList->item(s_lastPlugin);
         PluginHandler::instance().endDialog(item->data(Qt::UserRole).toUInt(), true);
     }
 }
@@ -764,7 +820,7 @@ void OptionDialog::saveUpdateSettings() {
     g_settings->setValue(OPTION_UPDATE_CHECK_ON_STARTUP, m_pUi->gbCheckUpdate->isChecked());
     g_settings->setValue(OPTION_UPDATE_CHECK_ON_STARTUP_DELAY, m_pUi->sbCheckUpdateDelay->value());
     g_settings->setValue(OPTION_UPDATE_CHECK_INTERVAL, m_pUi->sbCheckUpdateInterval->value());
-    
+
     UpdateChecker::instance().reloadConfig();
 }
 
@@ -813,7 +869,7 @@ void OptionDialog::initProxyWidget() {
 
     m_pUi->leProxyServerName->setText(g_settings->value(OPTION_PROXY_SERVER_NAME,
                                                         OPTION_PROXY_SERVER_NAME_DEFAULT).toString());
-    
+
     m_pUi->leProxyServerPort->setText(g_settings->value(OPTION_PROXY_SERVER_PORT,
                                                         OPTION_PROXY_SERVER_PORT_DEFAULT).toString());
 
@@ -854,29 +910,57 @@ void OptionDialog::saveProxySettings() {
 }
 
 void OptionDialog::initSystemWidget() {
-    int rebuildInterval = g_settings->value(OPSTION_REBUILDTIMER, OPSTION_REBUILDTIMER_DEFAULT).toInt();
+    int rebuildInterval = g_settings->value(OPTION_REBUILDTIMER, OPTION_REBUILDTIMER_DEFAULT).toInt();
     m_pUi->genRebuildMinutes->setValue(rebuildInterval);
     m_pUi->genRebuildCatalog->setChecked(rebuildInterval > 0);
     connect(m_pUi->genRebuildCatalog, SIGNAL(stateChanged(int)), this, SLOT(autoRebuildCheckChanged(int)));
 
-    m_pUi->genShowHidden->setChecked(g_settings->value(OPSTION_SHOWHIDDENFILES, OPSTION_SHOWHIDDENFILES_DEFAULT).toBool());
-    m_pUi->genShowNetwork->setChecked(g_settings->value(OPSTION_SHOWNETWORK, OPSTION_SHOWNETWORK_DEFAULT).toBool());
+    m_pUi->genShowHidden->setChecked(g_settings->value(OPTION_SHOWHIDDENFILES, OPTION_SHOWHIDDENFILES_DEFAULT).toBool());
+    m_pUi->genShowNetwork->setChecked(g_settings->value(OPTION_SHOWNETWORK, OPTION_SHOWNETWORK_DEFAULT).toBool());
 
     m_pUi->genPortable->setChecked(SettingsManager::instance().isPortable());
 
-    m_pUi->genLog->setCurrentIndex(g_settings->value(OPSTION_LOGLEVEL, OPSTION_LOGLEVEL_DEFAULT).toInt());
-    connect(m_pUi->genLog, SIGNAL(currentIndexChanged(int)), this, SLOT(logLevelChanged(int)));
+    m_pUi->cbLogLevel->setCurrentIndex(g_settings->value(OPTION_LOGLEVEL, OPTION_LOGLEVEL_DEFAULT).toInt());
+    connect(m_pUi->cbLogLevel, SIGNAL(currentIndexChanged(int)), this, SLOT(logLevelChanged(int)));
+
+    // language
+    QString lang = TranslationManager::instance().getLocale().name();
+    /*
+    g_settings->value(OPTION_LANGUAGE, OPTION_LANGUAGE_DEFAULT).toString();
+    if (lang.isEmpty()) {
+        lang = TranslationManager::instance().getLocale().name();
+    }
+    */
+
+    m_pUi->cbLanguage->addItem(QString("English"), QString("en")); // English is default
+    int indexLang = 0;
+    // load language from directory
+    QList<QLocale> locales = TranslationManager::instance().getAllLocales();
+    for (int i = 0; i < locales.size(); ++i) {
+        const QLocale& loc = locales.at(i);
+        m_pUi->cbLanguage->addItem(loc.nativeLanguageName(), loc.name());
+        if (lang == loc.name()) {
+            indexLang = i + 1;
+        }
+    }
+
+    // set combo box language from setting file
+    m_pUi->cbLanguage->setCurrentIndex(indexLang);
+
+    connect(m_pUi->cbLanguage, SIGNAL(currentIndexChanged(int)), this, SLOT(languageChanged(int)));
 }
 
 void OptionDialog::saveSystemSettings() {
-    g_settings->setValue(OPSTION_REBUILDTIMER,
+    g_settings->setValue(OPTION_REBUILDTIMER,
                          m_pUi->genRebuildCatalog->isChecked() ? m_pUi->genRebuildMinutes->value() : 0);
 
-    g_settings->setValue(OPSTION_SHOWHIDDENFILES, m_pUi->genShowHidden->isChecked());
-    g_settings->setValue(OPSTION_SHOWNETWORK, m_pUi->genShowNetwork->isChecked());
+    g_settings->setValue(OPTION_SHOWHIDDENFILES, m_pUi->genShowHidden->isChecked());
+    g_settings->setValue(OPTION_SHOWNETWORK, m_pUi->genShowNetwork->isChecked());
     SettingsManager::instance().setPortable(m_pUi->genPortable->isChecked());
 
-    g_settings->setValue(OPSTION_LOGLEVEL, m_pUi->genLog->currentIndex());
+    g_settings->setValue(OPTION_LOGLEVEL, m_pUi->cbLogLevel->currentIndex());
+
+    g_settings->setValue(OPTION_LANGUAGE, m_pUi->cbLanguage->currentData().toString());
 }
 
 void OptionDialog::initAboutWidget() {
@@ -898,7 +982,7 @@ void OptionDialog::addDirectory(const QString& directory, bool edit) {
         m_pUi->catDirectories->editItem(item);
     }
 
-    m_needRescan = true;
+    ++g_needRebuildCatalog;
 }
 
 
@@ -914,7 +998,7 @@ void OptionDialog::catTypesItemChanged(QListWidgetItem* item) {
 
     m_memDirs[row].types[typesRow] = m_pUi->catTypes->item(typesRow)->text();
 
-    m_needRescan = true;
+    ++g_needRebuildCatalog;
 }
 
 
@@ -930,7 +1014,7 @@ void OptionDialog::catTypesPlusClicked(bool c) {
     m_pUi->catTypes->setCurrentItem(item);
     m_pUi->catTypes->editItem(item);
 
-    m_needRescan = true;
+    ++g_needRebuildCatalog;
 }
 
 void OptionDialog::catTypesMinusClicked(bool c) {
@@ -950,15 +1034,16 @@ void OptionDialog::catTypesMinusClicked(bool c) {
         && m_pUi->catTypes->count() > 0)
         m_pUi->catTypes->setCurrentRow(m_pUi->catTypes->count() - 1);
 
-    m_needRescan = true;
+    ++g_needRebuildCatalog;
 }
 
 void OptionDialog::catDepthChanged(int d) {
     int row = m_pUi->catDirectories->currentRow();
-    if (row != -1)
-        m_memDirs[row].depth = d;
-
-    m_needRescan = true;
+    if (row == -1) {
+        return;
+    }
+    m_memDirs[row].depth = d;
+    ++g_needRebuildCatalog;
 }
 
 }

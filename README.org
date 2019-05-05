@@ -2,6 +2,7 @@
 [[https://github.com/samsonwang/LaunchyQt][file:https://raw.githubusercontent.com/samsonwang/LaunchyQt/master/misc/Launchy_Icon/launchy_icon.png]]
 
 * LaunchyQt
+[[https://github.com/samsonwang/LaunchyQt/releases][file:https://img.shields.io/github/release/samsonwang/LaunchyQt.svg]]
 [[https://doc.qt.io/qt-5.11/][file:https://img.shields.io/badge/Qt-5.11.1-41cd52.svg]]
 [[https://www.python.org/downloads/release/python-367/][file:https://img.shields.io/badge/python-3.6.7-blue.svg]]
 [[https://github.com/samsonwang/LaunchyQt/blob/master/LICENSE][file:https://img.shields.io/github/license/samsonwang/LaunchyQt.svg]]
@@ -11,18 +12,20 @@ I have been using Launchy for years, and found that this project has not been up
 
 *I need feedback, and you can help by reporting bugs and giving suggestions.*
 
-Checkout what feature is in develop at [[https://github.com/samsonwang/LaunchyQt/blob/dev/docs/CHANGELOG.org][here]] .
+Checkout what feature is in develop at [[https://github.com/samsonwang/LaunchyQt/projects/1][here]] , last commit on dev(devlop) branch [[https://github.com/samsonwang/LaunchyQt/tree/dev][file:https://img.shields.io/github/last-commit/samsonwang/LaunchyQt/dev.svg]] .
+
+If you want any new feature, feel free to raise an [[https://github.com/samsonwang/LaunchyQt/issues][issue]] for it, feature request is welcome.
+
+** Improvemenets
+Compared to the old one, LaunchyQt offers more as follows:
+- High DPI support for 2K and 4K display.
+- Locale language indexing support, such as simplified Chinese pinyin.
+- Built-in python support, develop plugins in python painlessly.
+- Python package management with pip, more easy to install 3rd-party packages.
+
 
 ** Latest release
 Checkout detailed info and download latest binary at [[https://github.com/samsonwang/LaunchyQt/releases][github release page]] or [[https://sourceforge.net/projects/launchyqt/files/][sourceforge release page]].
-
-*3.0.5* Changes:
-- bug fix: launchy may crash on restart while option dialaog is open
-- use pip to manage python package
-- network proxy setting
-- update check and new version notify
-- add "run as admin" in verby
-- new plugin PyDiryPy, it is ported from [[https://github.com/kshahar/pylaunchy][pylaunchy]]
 
 
 ** Credits
@@ -39,4 +42,4 @@ Checkout detailed info and download latest binary at [[https://github.com/samson
 
 
 ** Thanks
-Thank you all for helping me in launchy development, here is the [[https://github.com/samsonwang/LaunchyQt/blob/master/docs/THANKS.org][full context]] .
+Thank you all for helping me in launchy development, here is the [[https://github.com/samsonwang/LaunchyQt/blob/master/docs/THANKS.org][full content]] .

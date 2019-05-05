@@ -7,7 +7,7 @@ CONFIG += debug_and_release
 
 QT += network widgets
 
-PRECOMPILED_HEADER = precompiled.h
+PRECOMPILED_HEADER = Precompiled.h
 CONFIG += precompile_header
 
 INCLUDEPATH += ../deps ./lib ./pluginpy
@@ -21,6 +21,7 @@ SOURCES = main.cpp \
     PluginHandler.cpp \
     IconDelegate.cpp \
     IconExtractor.cpp \
+    IconProviderBase.cpp \
     FileBrowserDelegate.cpp \
     FileBrowser.cpp \
     DropListWidget.cpp \
@@ -34,7 +35,8 @@ SOURCES = main.cpp \
     SettingsManager.cpp \
     Logger.cpp \
     OptionItem.cpp \
-    Directory.cpp
+    Directory.cpp \
+    UpdateChecker.cpp
 HEADERS = AppBase.h \
     GlobalVar.h \
     LaunchyWidget.h \
@@ -44,6 +46,7 @@ HEADERS = AppBase.h \
     OptionDialog.h \
     IconDelegate.h \
     IconExtractor.h \
+    IconProviderBase.h \
     FileBrowserDelegate.h \
     FileBrowser.h \
     DropListWidget.h \
@@ -58,37 +61,39 @@ HEADERS = AppBase.h \
     SettingsManager.h \
     Logger.h \
     OptionItem.h \
-    Directory.h
+    Directory.h \
+    UpdateChecker.h
+
 FORMS = OptionDialog.ui
+
+RESOURCES += launchy.qrc
 
 include(../deps/SingleApplication/singleapplication.pri)
 DEFINES += QAPPLICATION_CLASS=QApplication
 include(../deps/QHotkey/QHotkey.pri)
 
-win32:CONFIG(release, debug|release): LIBS += $$OUT_PWD/lib/release/Launchy.lib
-else:win32:CONFIG(debug, debug|release): LIBS += $$OUT_PWD/lib/debug/Launchy.lib
-else:unix: LIBS += -L$$OUT_PWD/src/lib/ lib/liblaunchy.so
-
 INCLUDEPATH += $$PWD/src/lib
 DEPENDPATH += $$PWD/src/lib
 
+CONFIG(debug, debug|release):DESTDIR = ../debug/
+CONFIG(release, debug|release):DESTDIR = ../release/
+
+OBJECTS_DIR = build
+MOC_DIR = GeneratedFiles
 
 unix:!macx {
     QT += x11extras
     ICON = Launchy.ico
-    SOURCES += linux/platform_unix.cpp \
-               linux/platform_unix_util.cpp
-    HEADERS += linux/platform_unix.h \
-               linux/platform_unix_util.h
-    #LIBS    += -Llib -lLaunchy
+    SOURCES += linux/AppLinux.cpp \
+               linux/IconProviderLinux.cpp
+    HEADERS += linux/AppLinux.h \
+               linux/IconProviderLinux.h
+    LIBS += -L$$OUT_PWD/src/lib/ $$DESTDIR/liblaunchy.so $$DESTDIR/libpluginpy.so
+
     PREFIX   = /usr
     DEFINES += SKINS_PATH=\\\"$$PREFIX/share/launchy/skins/\\\" \
         PLUGINS_PATH=\\\"$$PREFIX/lib/launchy/plugins/\\\" \
         PLATFORMS_PATH=\\\"$$PREFIX/lib/launchy/\\\"
-    if(!debug_and_release|build_pass) {
-        CONFIG(debug, debug|release):DESTDIR = ../debug/
-        CONFIG(release, debug|release):DESTDIR = ../release/
-    }
     target.path   = $$PREFIX/bin/
     skins.path    = $$PREFIX/share/launchy/skins/
     skins.files   = ../skins/*
@@ -123,15 +128,14 @@ win32 {
                comctl32.lib \
                advapi32.lib \
                userenv.lib \
-               netapi32.lib
+               netapi32.lib \
+               $$DESTDIR/Launchy.lib \
+               $$DESTDIR/PluginPy.lib
     DEFINES += VC_EXTRALEAN \
                WIN32 \
                _UNICODE \
-               UNICODE
-    if(!debug_and_release|build_pass) {
-        CONFIG(debug, debug|release):DESTDIR = ../debug/
-        CONFIG(release, debug|release):DESTDIR = ../release/
-    }
+               UNICODE \
+
     QMAKE_CXXFLAGS_RELEASE += /Zi
     QMAKE_LFLAGS_RELEASE += /DEBUG
 }
@@ -176,16 +180,12 @@ macx {
         translations \
         dmg
 }
-TRANSLATIONS = \
-    ../translations/launchy_zh.ts \
-    ../translations/launchy_zh_TW.ts \
-    ../translations/launchy_fr.ts \
-    ../translations/launchy_nl.ts \
-    ../translations/launchy_zh.ts \
-    ../translations/launchy_es.ts \
-    ../translations/launchy_de.ts \
-    ../translations/launchy_ja.ts \
-    ../translations/launchy_rus.ts
-OBJECTS_DIR = build
-MOC_DIR = GeneratedFiles
-RESOURCES += launchy.qrc
+
+TRANSLATIONS = ../translations/launchy_zh_CN.ts \
+               ../translations/launchy_zh_TW.ts \
+               ../translations/launchy_fr.ts \
+               ../translations/launchy_nl.ts \
+               ../translations/launchy_es.ts \
+               ../translations/launchy_de.ts \
+               ../translations/launchy_ja.ts \
+               ../translations/launchy_ru.ts
